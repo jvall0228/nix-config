@@ -39,6 +39,19 @@
       env = [ "XCURSOR_SIZE,24" ];
       general = { gaps_in = 5; gaps_out = 10; border_size = 2; };
       input = { kb_layout = "us"; follow_mouse = 1; touchpad.natural_scroll = true; };
+
+      decoration.shadow.enabled = false;
+
+      misc = {
+        vfr = true;
+        disable_hyprland_logo = true;
+        disable_splash_rendering = true;
+      };
+
+      render = {
+        explicit_sync = 2;
+        explicit_sync_kms = 2;
+      };
     };
   };
 }

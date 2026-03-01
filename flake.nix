@@ -17,9 +17,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote/v0.4.2";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, ... }@inputs:
     let
       user = "javels";
       unstableFor = system: nixpkgs-unstable.legacyPackages.${system};
@@ -31,6 +36,7 @@
         specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
           disko.nixosModules.disko
+          lanzaboote.nixosModules.lanzaboote
           ./hosts/thinkpad/default.nix
           ./hosts/thinkpad/disko.nix
           ./modules/shared/nix.nix
@@ -63,6 +69,8 @@
         self.nixosConfigurations.thinkpad.config.system.build.toplevel;
 
       # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power)
+      # TODO: Add darwinConfigurations.macbook (nix-darwin + home-manager.darwinModules)
       # TODO: Add homeConfigurations for standalone home-manager (Arch)
+      # TODO: Add apps.aarch64-darwin with build-switch-darwin
     };
 }

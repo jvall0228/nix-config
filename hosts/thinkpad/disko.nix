@@ -1,6 +1,6 @@
 { ... }:
 let
-  btrfsMountOpts = [ "compress=zstd" "noatime" ];
+  btrfsMountOpts = [ "compress=zstd:1" "noatime" "ssd" "discard=async" "space_cache=v2" ];
 in
 {
   disko.devices = {

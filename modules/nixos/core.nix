@@ -1,12 +1,13 @@
 { pkgs, user, config, ... }:
 {
-  boot.loader = {
-    systemd-boot = {
-      enable = true;
-      configurationLimit = 10;
-    };
-    efi.canTouchEfiVariables = true;
-  };
+  boot.initrd.systemd.enable = true;
+
+  boot.kernelParams = [
+    "quiet" "loglevel=3" "systemd.show_status=auto"
+    "slab_nomerge" "init_on_alloc=1" "init_on_free=1" "page_alloc.shuffle=1"
+  ];
+
+  boot.blacklistedKernelModules = [ "dccp" "sctp" "rds" "tipc" ];
 
   boot.kernel.sysctl = {
     "fs.inotify.max_user_watches" = 1048576;
@@ -31,25 +32,20 @@
     "net.ipv6.conf.all.accept_redirects" = 0;
     "net.ipv6.conf.default.accept_redirects" = 0;
     "net.ipv6.conf.all.accept_source_route" = 0;
+    "net.ipv6.conf.default.accept_source_route" = 0;
+    "net.ipv6.conf.all.accept_ra" = 0;
+    "net.ipv6.conf.default.accept_ra" = 0;
   };
 
   networking.networkmanager = {
     enable = true;
     wifi.macAddress = "random";
   };
-  networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ ];
-    allowedUDPPorts = [ ];
-  };
+  networking.firewall.enable = true;
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
 
   security.sudo.execWheelOnly = true;
-
-  hardware.bluetooth.enable = true;
-  hardware.bluetooth.powerOnBoot = false;
-  services.blueman.enable = true;
 
   users.users.${user} = {
     isNormalUser = true;
@@ -72,6 +68,4 @@
     dates = "04:00";
     allowReboot = false;
   };
-
-  system.stateVersion = "25.05";
 }
