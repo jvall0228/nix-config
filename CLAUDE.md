@@ -10,10 +10,8 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `hosts/<name>/` — Per-machine config. Each host has `default.nix`, `hardware-configuration.nix`, and optionally `disko.nix`.
 - `modules/shared/` — Nix settings shared across NixOS and Darwin.
 - `modules/nixos/` — NixOS-specific system modules (boot, audio, nvidia, hyprland, power).
-- `modules/darwin/` — macOS-specific system modules (future).
-- `home/` — home-manager config. `common/` is cross-platform, `linux/` and `darwin/` are platform-guarded.
-- `apps/` — Shell scripts exposed as flake apps.
-- `overlays/` — Package overlays (empty for now).
+- `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific.
+- `apps/` — Shell scripts for common operations (run directly with `bash apps/<name>`).
 
 ## Conventions
 
@@ -37,4 +35,3 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - Change `system.stateVersion` or `home.stateVersion` on deployed hosts.
 - Edit `hardware-configuration.nix` manually.
 - Add NixOS-specific options in `home/common/` (use `home/linux/`).
-- Add Darwin-specific options in `home/common/` (use `home/darwin/`).

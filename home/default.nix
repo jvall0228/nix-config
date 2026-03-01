@@ -7,13 +7,11 @@
     ./common/dev-tools.nix
   ] ++ lib.optionals pkgs.stdenv.isLinux [
     ./linux
-  ] ++ lib.optionals pkgs.stdenv.isDarwin [
-    ./darwin
   ];
 
   home = {
     username = user;
-    homeDirectory = if pkgs.stdenv.isDarwin then "/Users/${user}" else "/home/${user}";
+    homeDirectory = "/home/${user}";
     stateVersion = "25.05";
   };
 

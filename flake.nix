@@ -17,36 +17,18 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-darwin = {
-      url = "github:LnL7/nix-darwin";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, nix-darwin, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, ... }@inputs:
     let
       user = "javels";
       unstableFor = system: nixpkgs-unstable.legacyPackages.${system};
-
-      mkApp = system: name: {
-        type = "app";
-        program = "${(nixpkgs.legacyPackages.${system}.writeScriptBin name ''
-          #!/usr/bin/env bash
-          exec ${self}/apps/${name} "$@"
-        '')}/bin/${name}";
-      };
     in
     {
-      # ── Convenience apps ─────────────────────────────────────
-      apps.x86_64-linux = {
-        build-switch = mkApp "x86_64-linux" "build-switch";
-        clean = mkApp "x86_64-linux" "clean";
-      };
-
       # ── NixOS hosts ──────────────────────────────────────────
-      nixosConfigurations.thinkpad = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        specialArgs = { inherit inputs user; unstable = unstableFor "x86_64-linux"; };
+      nixosConfigurations.thinkpad = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
+        inherit system;
+        specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
           disko.nixosModules.disko
           ./hosts/thinkpad/default.nix
@@ -69,7 +51,7 @@
               useGlobalPkgs = true;
               useUserPackages = true;
               users.${user} = import ./home/default.nix;
-              extraSpecialArgs = { inherit inputs user; unstable = unstableFor "x86_64-linux"; };
+              extraSpecialArgs = { inherit inputs user; unstable = unstableFor system; };
               backupFileExtension = "backup";
             };
           }

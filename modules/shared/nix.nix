@@ -5,8 +5,13 @@
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     auto-optimise-store = true;
-    trusted-users = [ "root" user ];
+    trusted-users = [ "root" ];
+    allowed-users = [ "root" user ];
     substituters = [
+      "https://cache.nixos.org"
+      "https://nix-community.cachix.org"
+    ];
+    trusted-substituters = [
       "https://cache.nixos.org"
       "https://nix-community.cachix.org"
     ];

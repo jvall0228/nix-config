@@ -17,16 +17,10 @@
   };
 
   networking.networkmanager.enable = true;
-  networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ ];
-    allowedUDPPorts = [ ];
-  };
+  networking.firewall.enable = true;
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
 
-  hardware.enableRedistributableFirmware = true;
-  hardware.cpu.amd.updateMicrocode = true;
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = false;
   services.blueman.enable = true;
@@ -40,6 +34,13 @@
   environment.systemPackages = with pkgs; [
     vim git curl wget htop unzip file
   ];
+
+  system.autoUpgrade = {
+    enable = true;
+    flake = "github:jvall0228/nix-config#thinkpad";
+    dates = "04:00";
+    allowReboot = false;
+  };
 
   system.stateVersion = "25.05";
 }
