@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+HOST="${1:-thinkpad}"
+echo -e "${YELLOW}Building and switching to: ${HOST}${NC}"
+sudo nixos-rebuild switch --flake .#"$HOST"
+echo -e "${GREEN}Switch complete!${NC}"
