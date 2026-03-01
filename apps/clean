@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 echo "Collecting garbage..."
-nix-collect-garbage -d
-sudo nix-collect-garbage -d
+nix-collect-garbage --delete-older-than 7d
+sudo nix-collect-garbage --delete-older-than 7d
 echo "Done."

@@ -25,6 +25,8 @@ in
             content = {
               type = "luks";
               name = "cryptroot";
+              # allowDiscards: trades minor info leak (block usage patterns visible
+              # to physical attacker) for SSD health via TRIM. Acceptable for laptop.
               settings.allowDiscards = true;
               content = {
                 type = "btrfs";

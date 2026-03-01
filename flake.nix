@@ -22,14 +22,13 @@
   outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, ... }@inputs:
     let
       user = "javels";
-      flakeUri = "github:jvall0228/nix-config";
       unstableFor = system: nixpkgs-unstable.legacyPackages.${system};
     in
     {
       # ── NixOS hosts ──────────────────────────────────────────
       nixosConfigurations.thinkpad = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs user flakeUri; unstable = unstableFor system; };
+        specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
           disko.nixosModules.disko
           ./hosts/thinkpad/default.nix

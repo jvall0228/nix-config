@@ -1,4 +1,4 @@
-{ pkgs, user, config, flakeUri, ... }:
+{ pkgs, user, config, ... }:
 {
   boot.loader = {
     systemd-boot = {
@@ -15,19 +15,37 @@
     "kernel.kptr_restrict" = 2;
     "kernel.yama.ptrace_scope" = 1;
     "kernel.dmesg_restrict" = 1;
+    "kernel.sysrq" = 0;
+    "fs.protected_symlinks" = 1;
+    "fs.protected_hardlinks" = 1;
     "net.ipv4.conf.all.rp_filter" = 1;
     "net.ipv4.conf.default.rp_filter" = 1;
     "net.ipv4.conf.all.accept_redirects" = 0;
     "net.ipv4.conf.default.accept_redirects" = 0;
-    "net.ipv6.conf.all.accept_redirects" = 0;
     "net.ipv4.conf.all.send_redirects" = 0;
     "net.ipv4.conf.default.send_redirects" = 0;
+    "net.ipv4.conf.all.accept_source_route" = 0;
+    "net.ipv4.conf.all.log_martians" = 1;
+    "net.ipv4.tcp_syncookies" = 1;
+    "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
+    "net.ipv6.conf.all.accept_redirects" = 0;
+    "net.ipv6.conf.default.accept_redirects" = 0;
+    "net.ipv6.conf.all.accept_source_route" = 0;
   };
 
-  networking.networkmanager.enable = true;
-  networking.firewall.enable = true;
+  networking.networkmanager = {
+    enable = true;
+    wifi.macAddress = "random";
+  };
+  networking.firewall = {
+    enable = true;
+    allowedTCPPorts = [ ];
+    allowedUDPPorts = [ ];
+  };
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
+
+  security.sudo.execWheelOnly = true;
 
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = false;
@@ -40,12 +58,17 @@
   };
 
   environment.systemPackages = with pkgs; [
-    vim git curl wget htop unzip file
+    git
+    curl
+    wget
+    htop
+    unzip
+    file
   ];
 
   system.autoUpgrade = {
     enable = true;
-    flake = "${flakeUri}#${config.networking.hostName}";
+    flake = "github:jvall0228/nix-config/main#${config.networking.hostName}";
     dates = "04:00";
     allowReboot = false;
   };

@@ -1,4 +1,4 @@
-{ pkgs, user, unstable, lib, ... }:
+{ pkgs, user, lib, ... }:
 {
   imports = [
     ./common/shell.nix
@@ -14,10 +14,6 @@
     homeDirectory = "/home/${user}";
     stateVersion = "25.05";
   };
-
-  home.packages = [
-    unstable.claude-code
-  ];
 
   programs.direnv = {
     enable = true;
