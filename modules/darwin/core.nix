@@ -1,4 +1,4 @@
 { ... }:
 {
-  # macOS system-level config (future)
+  # TODO: Add macOS system config (nix-darwin settings, services, defaults)
 }

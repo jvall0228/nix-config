@@ -32,7 +32,7 @@
         '', Print, exec, grim -g "$(slurp)" - | wl-copy''
       ];
 
-      env = [ "XCURSOR_SIZE,24" "WLR_NO_HARDWARE_CURSORS,1" ];
+      env = [ "XCURSOR_SIZE,24" ];
       general = { gaps_in = 5; gaps_out = 10; border_size = 2; };
       input = { kb_layout = "us"; follow_mouse = 1; touchpad.natural_scroll = true; };
     };

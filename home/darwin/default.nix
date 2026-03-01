@@ -1,5 +1,4 @@
 { ... }:
 {
-  # macOS-specific home-manager config (future)
-  # Homebrew cask integration, macOS defaults, etc.
+  # TODO: Add macOS home-manager config (Homebrew casks, macOS defaults)
 }

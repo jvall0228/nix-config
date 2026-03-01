@@ -32,7 +32,6 @@
         type = "app";
         program = "${(nixpkgs.legacyPackages.${system}.writeScriptBin name ''
           #!/usr/bin/env bash
-          PATH=${nixpkgs.legacyPackages.${system}.git}/bin:$PATH
           exec ${self}/apps/${name} "$@"
         '')}/bin/${name}";
       };
@@ -77,34 +76,9 @@
         ];
       };
 
-      # Future: proxmox VM
-      # nixosConfigurations.proxmox-vm = nixpkgs.lib.nixosSystem { ... };
-
-      # ── nix-darwin (future) ──────────────────────────────────
-      # darwinConfigurations.macbook = nix-darwin.lib.darwinSystem {
-      #   system = "aarch64-darwin";
-      #   specialArgs = { inherit inputs user; unstable = unstableFor "aarch64-darwin"; };
-      #   modules = [
-      #     ./hosts/macbook/default.nix
-      #     ./modules/shared/nix.nix
-      #     ./modules/darwin/core.nix
-      #     home-manager.darwinModules.home-manager
-      #     {
-      #       home-manager = {
-      #         useGlobalPkgs = true;
-      #         useUserPackages = true;
-      #         users.${user} = import ./home/default.nix;
-      #         extraSpecialArgs = { inherit inputs user; unstable = unstableFor "aarch64-darwin"; };
-      #       };
-      #     }
-      #   ];
-      # };
-
-      # ── Standalone home-manager (for Arch, etc.) ─────────────
-      # homeConfigurations.${user} = home-manager.lib.homeManagerConfiguration {
-      #   pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      #   extraSpecialArgs = { inherit inputs user; unstable = unstableFor "x86_64-linux"; };
-      #   modules = [ ./home/default.nix ];
-      # };
+      # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power)
+      # TODO: Add darwinConfigurations.macbook (nix-darwin + home-manager.darwinModules)
+      # TODO: Add homeConfigurations for standalone home-manager (Arch)
+      # TODO: Add apps.aarch64-darwin with build-switch-darwin
     };
 }
