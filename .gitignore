@@ -1,0 +1,9 @@
+result
+.direnv/
+*.swp
+*.swo
+*~
+.env
+*.pem
+*.key
+secrets/

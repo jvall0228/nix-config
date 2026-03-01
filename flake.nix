@@ -22,13 +22,14 @@
   outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, ... }@inputs:
     let
       user = "javels";
+      flakeUri = "github:jvall0228/nix-config";
       unstableFor = system: nixpkgs-unstable.legacyPackages.${system};
     in
     {
       # ── NixOS hosts ──────────────────────────────────────────
       nixosConfigurations.thinkpad = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs user; unstable = unstableFor system; };
+        specialArgs = { inherit inputs user flakeUri; unstable = unstableFor system; };
         modules = [
           disko.nixosModules.disko
           ./hosts/thinkpad/default.nix
@@ -57,6 +58,10 @@
           }
         ];
       };
+
+      # ── Checks ─────────────────────────────────────────────
+      checks.x86_64-linux.thinkpad =
+        self.nixosConfigurations.thinkpad.config.system.build.toplevel;
 
       # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power)
       # TODO: Add homeConfigurations for standalone home-manager (Arch)

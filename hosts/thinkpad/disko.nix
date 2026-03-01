@@ -1,4 +1,7 @@
 { ... }:
+let
+  btrfsMountOpts = [ "compress=zstd" "noatime" ];
+in
 {
   disko.devices = {
     disk.main = {
@@ -27,9 +30,9 @@
                 type = "btrfs";
                 extraArgs = [ "-f" ];
                 subvolumes = {
-                  "@" = { mountpoint = "/"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                  "@home" = { mountpoint = "/home"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                  "@nix" = { mountpoint = "/nix"; mountOptions = [ "compress=zstd" "noatime" ]; };
+                  "@" = { mountpoint = "/"; mountOptions = btrfsMountOpts; };
+                  "@home" = { mountpoint = "/home"; mountOptions = btrfsMountOpts; };
+                  "@nix" = { mountpoint = "/nix"; mountOptions = btrfsMountOpts; };
                   "@swap" = { mountpoint = "/swap"; mountOptions = [ "noatime" ]; };
                 };
               };

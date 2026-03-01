@@ -21,11 +21,10 @@ Multi-platform Nix configuration managed with flakes.
 │   ├── shared/            # Cross-platform (nix settings)
 │   ├── nixos/             # NixOS system modules
 │   └── darwin/            # macOS system modules (future)
-├── home/
-│   ├── common/            # Cross-platform home-manager
-│   ├── linux/             # Linux-only (Hyprland, GUI apps)
-│   └── darwin/            # macOS-only (future)
-└── overlays/
+└── home/
+    ├── common/            # Cross-platform home-manager
+    ├── linux/             # Linux-only (Hyprland, GUI apps)
+    └── darwin/            # macOS-only (future)
 ```
 
 ## ThinkPad P15v Gen 3
@@ -40,11 +39,9 @@ Multi-platform Nix configuration managed with flakes.
 # Rebuild and switch
 sudo nixos-rebuild switch --flake .#thinkpad
 
-# Or use the app script
-nix run .#build-switch -- thinkpad
-
-# Garbage collect
-nix run .#clean
+# Or use the convenience scripts
+bash apps/build-switch thinkpad
+bash apps/clean
 ```
 
 ## Adding a Host

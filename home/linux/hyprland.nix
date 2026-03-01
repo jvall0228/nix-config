@@ -1,5 +1,9 @@
-{ ... }:
+{ pkgs, ... }:
 {
+  home.packages = with pkgs; [
+    kitty waybar wofi mako grim slurp wl-clipboard swww
+  ];
+
   wayland.windowManager.hyprland = {
     enable = true;
     settings = {
