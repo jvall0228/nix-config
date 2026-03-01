@@ -59,8 +59,6 @@
       };
 
       # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power)
-      # TODO: Add darwinConfigurations.macbook (nix-darwin + home-manager.darwinModules)
       # TODO: Add homeConfigurations for standalone home-manager (Arch)
-      # TODO: Add apps.aarch64-darwin with build-switch-darwin
     };
 }

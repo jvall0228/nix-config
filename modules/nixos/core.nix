@@ -1,4 +1,4 @@
-{ pkgs, user, ... }:
+{ pkgs, user, config, ... }:
 {
   boot.loader = {
     systemd-boot = {
@@ -37,7 +37,7 @@
 
   system.autoUpgrade = {
     enable = true;
-    flake = "github:jvall0228/nix-config#thinkpad";
+    flake = "github:jvall0228/nix-config#${config.networking.hostName}";
     dates = "04:00";
     allowReboot = false;
   };
