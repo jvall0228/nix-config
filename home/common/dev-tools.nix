@@ -12,6 +12,7 @@
     python3
     nodejs
     rustup
+    tmux
     unstable.claude-code
   ];
 }

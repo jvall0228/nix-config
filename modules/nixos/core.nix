@@ -60,6 +60,7 @@
     htop
     unzip
     file
+    sbctl
   ];
 
   system.autoUpgrade = {
