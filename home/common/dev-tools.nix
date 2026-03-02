@@ -14,5 +14,8 @@
     rustup
     tmux
     unstable.claude-code
+    unstable.codex
+    unstable.gemini-cli
+    unstable.opencode
   ];
 }
