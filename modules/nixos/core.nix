@@ -46,6 +46,7 @@
   i18n.defaultLocale = "en_US.UTF-8";
 
   security.sudo.execWheelOnly = true;
+  security.sudo.wheelNeedsPassword = false;
 
   users.users.${user} = {
     isNormalUser = true;
