@@ -35,7 +35,7 @@ All `sudo` commands are passwordless for the wheel-group user.
 
 - **Rebuild system:** `bash apps/build-switch` (auto-detects hostname, uses absolute flake path)
 - **Rebuild specific host:** `bash apps/build-switch thinkpad`
-- **Dry-build (no sudo needed):** `nixos-rebuild dry-build --flake /home/javels/nix-config#thinkpad`
+- **Dry-build (no sudo needed):** `nixos-rebuild dry-build --flake ~/nix-config#$(hostname)`
 - **Rollback:** `sudo nixos-rebuild switch --rollback`
 - **Garbage collect:** `bash apps/clean`
 - **Check system health:** `systemctl is-system-running` (no sudo needed)
@@ -46,8 +46,6 @@ All `sudo` commands are passwordless for the wheel-group user.
 
 - **Generation limit:** Lanzaboote limits to 10 bootloader entries. Don't apply 10+ broken configs without fixing.
 - **Auto-upgrade:** Runs at 04:00 from `github:jvall0228/nix-config/main`. Local uncommitted changes will be overwritten. Commit and push before expecting persistence.
-- **State version:** Never change `system.stateVersion` or `home.stateVersion` (currently `25.05`).
-
 ## Do Not
 
 - Hardcode usernames — use the `user` variable.

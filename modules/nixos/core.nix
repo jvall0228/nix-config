@@ -46,6 +46,8 @@
   i18n.defaultLocale = "en_US.UTF-8";
 
   security.sudo.execWheelOnly = true;
+  # Passwordless sudo: acceptable for single-user LUKS-encrypted workstations.
+  # Override with `security.sudo.wheelNeedsPassword = lib.mkForce true;` for server hosts.
   security.sudo.wheelNeedsPassword = false;
 
   users.users.${user} = {
