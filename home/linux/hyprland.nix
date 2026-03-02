@@ -7,7 +7,7 @@
   wayland.windowManager.hyprland = {
     enable = true;
     settings = {
-      monitor = ",preferred,auto,1";
+      monitor = ",preferred,auto,2";
       "$mod" = "SUPER";
 
       exec-once = [ "waybar" "mako" "swww-daemon" ];
@@ -38,7 +38,7 @@
 
       env = [ "XCURSOR_SIZE,24" ];
       general = { gaps_in = 5; gaps_out = 10; border_size = 2; };
-      input = { kb_layout = "us"; follow_mouse = 1; touchpad.natural_scroll = true; };
+      input = { kb_layout = "us"; follow_mouse = 1; sensitivity = 0.5; touchpad.natural_scroll = true; };
 
       decoration.shadow.enabled = false;
 
