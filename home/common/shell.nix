@@ -13,6 +13,7 @@
       gc = "git commit";
       gp = "git push";
       gl = "git log --oneline --graph";
+      claudex = "claude --dangerously-skip-permissions";
     };
   };
 
