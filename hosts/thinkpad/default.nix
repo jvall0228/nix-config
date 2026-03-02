@@ -3,13 +3,17 @@
   imports = [ ./hardware-configuration.nix ];
   networking.hostName = "thinkpad";
 
-  boot.loader.systemd-boot.enable = lib.mkForce false;
+  # First install: use systemd-boot. After first boot, create secure boot
+  # keys with sbctl, then switch to lanzaboote (see post-install steps).
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 10;
   boot.loader.efi.canTouchEfiVariables = true;
-  boot.lanzaboote = {
-    enable = true;
-    pkiBundle = "/etc/secureboot";
-    configurationLimit = 10;
-  };
+  # boot.loader.systemd-boot.enable = lib.mkForce false;
+  # boot.lanzaboote = {
+  #   enable = true;
+  #   pkiBundle = "/etc/secureboot";
+  #   configurationLimit = 10;
+  # };
 
   hardware.bluetooth.enable = true;
   hardware.bluetooth.powerOnBoot = false;

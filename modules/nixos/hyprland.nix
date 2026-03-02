@@ -5,7 +5,7 @@
     xwayland.enable = true;
   };
 
-  environment.systemPackages = with pkgs; [ polkit-kde-agent ];
+  environment.systemPackages = [ pkgs.kdePackages.polkit-kde-agent-1 ];
 
   security.polkit.enable = true;
   xdg.portal = {

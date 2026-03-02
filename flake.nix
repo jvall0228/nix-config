@@ -27,7 +27,10 @@
   outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, ... }@inputs:
     let
       user = "javels";
-      unstableFor = system: nixpkgs-unstable.legacyPackages.${system};
+      unstableFor = system: import nixpkgs-unstable {
+        inherit system;
+        config.allowUnfree = true;
+      };
     in
     {
       # ── NixOS hosts ──────────────────────────────────────────
@@ -57,7 +60,7 @@
               useGlobalPkgs = true;
               useUserPackages = true;
               users.${user} = import ./home/default.nix;
-              extraSpecialArgs = { inherit inputs user; unstable = unstableFor system; };
+              extraSpecialArgs = { inherit inputs user system; unstable = unstableFor system; };
               backupFileExtension = "backup";
             };
           }

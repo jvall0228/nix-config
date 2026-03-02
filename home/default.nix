@@ -1,11 +1,11 @@
-{ pkgs, user, lib, ... }:
+{ user, system, lib, ... }:
 {
   imports = [
     ./common/shell.nix
     ./common/git.nix
     ./common/neovim.nix
     ./common/dev-tools.nix
-  ] ++ lib.optionals pkgs.stdenv.isLinux [
+  ] ++ lib.optionals (builtins.elem system [ "x86_64-linux" "aarch64-linux" ]) [
     ./linux
   ];
 
