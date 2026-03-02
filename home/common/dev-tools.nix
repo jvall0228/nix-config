@@ -7,6 +7,7 @@
     bat
     eza
     fzf
+    gh
     lazygit
     python3
     nodejs
