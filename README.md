@@ -16,13 +16,14 @@ Multi-platform Nix configuration managed with flakes.
 ```
 ├── flake.nix              # Entry point
 ├── apps/                  # Convenience scripts (build-switch, clean)
+├── assets/                # Wallpapers and static assets
 ├── hosts/                 # Per-machine configs + hardware
 ├── modules/
 │   ├── shared/            # Cross-platform (nix settings)
-│   └── nixos/             # NixOS system modules
+│   └── nixos/             # NixOS system modules (core, audio, nvidia, hyprland, stylix, greetd, power)
 └── home/
-    ├── common/            # Cross-platform home-manager
-    └── linux/             # Linux-only (Hyprland, GUI apps)
+    ├── common/            # Cross-platform (shell, git, neovim, kitty, tmux, fastfetch, dev-tools)
+    └── linux/             # Linux-only (hyprland, waybar, rofi, hyprlock, wlogout, swaync, starship, desktop)
 ```
 
 ## ThinkPad P15v Gen 3
@@ -33,6 +34,19 @@ Multi-platform Nix configuration managed with flakes.
 - Secure Boot via Lanzaboote
 - TLP battery management with turbo boost control
 - Kernel hardening (sysctls, module blacklist, memory init)
+
+### Desktop Environment
+
+- **Theming:** Stylix with Tokyo Night Dark (base16), Bibata cursor, Papirus icons
+- **Fonts:** JetBrains Mono Nerd Font, Noto Sans/Serif, Noto Color Emoji
+- **Bar:** Waybar (workspaces, clock, battery, CPU, volume, network, bluetooth, tray)
+- **Launcher:** Rofi
+- **Notifications:** SwayNC
+- **Lock screen:** Hyprlock + Hypridle (5min lock, 15min suspend)
+- **Power menu:** Wlogout (Super+M)
+- **Login:** Greetd + ReGreet
+- **Terminal:** Kitty, tmux (Tokyo Night), starship prompt
+- **Apps:** Firefox, VS Code, Discord, Slack, Telegram, Obsidian, mpv, Nautilus
 
 ## Usage
 

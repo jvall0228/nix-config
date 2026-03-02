@@ -9,9 +9,12 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `flake.nix` — Entry point. Defines all host configurations and inputs.
 - `hosts/<name>/` — Per-machine config. Each host has `default.nix`, `hardware-configuration.nix`, and optionally `disko.nix`.
 - `modules/shared/` — Nix settings shared across NixOS and Darwin.
-- `modules/nixos/` — NixOS-specific system modules (boot, audio, nvidia, hyprland, power).
+- `modules/nixos/` — NixOS-specific system modules (boot, audio, nvidia, hyprland, power, stylix, greetd).
 - `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific.
+- `home/linux/` — Hyprland, waybar, rofi, hyprlock, wlogout, swaync, starship, desktop apps.
+- `home/common/` — Shell, git, neovim, kitty, tmux, fastfetch, dev-tools.
 - `apps/` — Shell scripts for common operations (run directly with `bash apps/<name>`).
+- `assets/` — Wallpapers and static assets.
 
 ## Conventions
 
@@ -28,6 +31,10 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `hardware-configuration.nix` is machine-generated. Don't hand-edit it.
 - `disko.nix` defines declarative disk layout. Only modify when changing partition scheme.
 - System packages go in `modules/nixos/core.nix`. User packages go in `home/common/dev-tools.nix` or platform-specific home modules.
+- Stylix (`modules/nixos/stylix.nix`) manages theming globally — Tokyo Night Dark, JetBrains Mono NF, Bibata cursor. It auto-targets kitty, waybar, hyprlock, GTK, QT. Use `stylix.targets.<name>.enable = false` to opt out specific apps. Don't set `qt.platformTheme` or manual color configs that conflict with Stylix.
+- `rofi-wayland` was merged into `rofi` in nixpkgs 25.11 — use `pkgs.rofi`.
+- `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
+- Hyprland `exec-once` and `bind` entries using pipes, `$()`, or `&&` must be wrapped in `sh -c '...'`.
 
 ## Agent Workflow (NixOS Operations)
 

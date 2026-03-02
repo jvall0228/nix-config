@@ -33,4 +33,7 @@
 
   # Syncthing file sync
   services.syncthing.enable = true;
+
+  # User avatar (used by greetd/regreet, accountsservice)
+  home.file.".face".source = ../../assets/avatar.png;
 }
