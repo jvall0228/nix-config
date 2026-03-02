@@ -42,6 +42,8 @@
     wifi.macAddress = "random";
   };
   networking.firewall.enable = true;
+  networking.firewall.allowedTCPPorts = [ 22000 ];
+  networking.firewall.allowedUDPPorts = [ 22000 21027 ];
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
 

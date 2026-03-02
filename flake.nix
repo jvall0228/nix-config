@@ -22,9 +22,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    stylix = {
+      url = "github:nix-community/stylix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, stylix, ... }@inputs:
     let
       user = "javels";
       unstableFor = system: import nixpkgs-unstable {
@@ -48,6 +53,9 @@
           ./modules/nixos/nvidia.nix
           ./modules/nixos/hyprland.nix
           ./modules/nixos/power.nix
+          ./modules/nixos/stylix.nix
+          ./modules/nixos/greetd.nix
+          stylix.nixosModules.stylix
 
           nixos-hardware.nixosModules.common-cpu-amd
           nixos-hardware.nixosModules.common-gpu-nvidia-nonprime

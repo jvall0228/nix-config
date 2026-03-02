@@ -5,6 +5,9 @@
     ./common/git.nix
     ./common/neovim.nix
     ./common/dev-tools.nix
+    ./common/kitty.nix
+    ./common/tmux.nix
+    ./common/fastfetch.nix
   ] ++ lib.optionals (builtins.elem system [ "x86_64-linux" "aarch64-linux" ]) [
     ./linux
   ];
