@@ -301,7 +301,8 @@ let
 
             # Slideshow fires immediately
             if [ "$local_mode" = "slideshow" ]; then
-                wallpaper-set slideshow &
+                wallpaper-set slideshow >/dev/null 2>&1 &
+                disown
                 exit 0
             fi
 
@@ -313,7 +314,8 @@ let
         if [[ "$info" == file:* ]]; then
             filepath="''${info#file:}"
             mode="''${ROFI_DATA#mode:}"
-            wallpaper-set "$mode" "$filepath" &
+            wallpaper-set "$mode" "$filepath" >/dev/null 2>&1 &
+            disown
             exit 0
         fi
     fi
