@@ -11,7 +11,6 @@
     wl-clipboard
     grim
     slurp
-    swww
     brightnessctl
     playerctl
     swayosd
@@ -31,8 +30,8 @@
       exec-once = [
         "waybar"
         "swaync"
-        "swww-daemon"
-        "sh -c 'sleep 1; swww img ~/nix-config/assets/wallpaper.png'"
+        "wallpaper-init"
+        "wallpaper-battery-monitor"
         "nm-applet --indicator"
         "blueman-applet"
         "/run/current-system/sw/bin/polkit-kde-agent-1"
@@ -56,6 +55,7 @@
         "$mod, V, togglefloating,"
         "$mod, M, exec, wlogout"
         "$mod SHIFT, L, exec, hyprlock"
+        "$mod, W, exec, sh -c 'rofi -show wallpaper -modi \"wallpaper:wallpaper-menu\" -show-icons -theme-str \"listview { columns: 3; lines: 3; }\" -theme-str \"element-icon { size: 150px; }\"'"
         "$mod, N, exec, swaync-client -t -sw"
         "SUPER, C, exec, sh -c 'cliphist list | rofi -dmenu | cliphist decode | wl-copy'"
         "$mod, H, movefocus, l"

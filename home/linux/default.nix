@@ -8,5 +8,6 @@
     ./rofi.nix
     ./swaync.nix
     ./starship.nix
+    ./wallpaper.nix
   ];
 }
