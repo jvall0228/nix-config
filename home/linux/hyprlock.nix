@@ -90,7 +90,7 @@
       general = {
         lock_cmd = "pidof hyprlock || hyprlock";
         before_sleep_cmd = "loginctl lock-session";
-        after_sleep_cmd = "hyprctl dispatch dpms on";
+        after_sleep_cmd = "hyprctl dispatch dpms on && wallpaper-restore";
       };
       listener = [
         { timeout = 300; on-timeout = "hyprlock"; }
