@@ -36,15 +36,16 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
 - Hyprland `exec-once` and `bind` entries using pipes, `$()`, or `&&` must be wrapped in `sh -c '...'`.
 
-## System Context (Auto-generated)
+## System Context
 
-IMPORTANT: Always read `/etc/agent-context.md` before running system commands or making
-configuration changes. This file contains pre-computed system info that eliminates the
-need for discovery commands like `uname`, `lspci`, or directory exploration.
+This system is NixOS 25.11, x86_64-linux, kernel 6.12.74.
+Flake: ~/nix-config#thinkpad.
+GPU: AMD Rembrandt Radeon 680M + NVIDIA (discrete, via nvidia.nix).
 
-Run `bash apps/system-status` for a full system health check including the context file.
+Do NOT run discovery commands like `uname`, `lspci`, or directory exploration — use this section instead.
 
-Do NOT modify `/etc/agent-context.md` — it is auto-generated on every rebuild.
+For a full system context dump (also usable by non-Claude agents): `cat /etc/agent-context.md`
+For system health check: `bash apps/system-status`
 
 ## Agent Workflow (NixOS Operations)
 
