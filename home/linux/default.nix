@@ -10,5 +10,6 @@
     ./starship.nix
     ./wallpaper.nix
     ./capture.nix
+    ./walker.nix
   ];
 }

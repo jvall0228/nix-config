@@ -27,9 +27,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    walker = {
+      url = "github:abenz1267/walker";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, stylix, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, stylix, walker, ... }@inputs:
     let
       user = "javels";
       unstableFor = system: import nixpkgs-unstable {
