@@ -1,7 +1,7 @@
 ---
 title: "feat: Agent Knowledge Layer — auto-generated system context for AI agents"
 type: feat
-status: active
+status: completed
 date: 2026-03-02
 origin: docs/brainstorms/2026-03-02-agent-ergonomic-nixos-brainstorm.md
 ---
@@ -230,7 +230,7 @@ A `home/common/agent-context.nix` using `home.activation` instead of `system.act
 
 - [x] `modules/nixos/agent-context.nix` exists as a pure config module — `modules/nixos/agent-context.nix`
 - [x] Module is imported in `flake.nix` thinkpad config — `flake.nix`
-- [ ] `nixos-rebuild switch` generates `/etc/agent-context.md` — activation script
+- [x] `nixos-rebuild switch` generates `/etc/agent-context.md` — activation script
 - [x] Generated file is under 100 lines — context budget
 - [x] Generated file contains: hostname, NixOS version, kernel, GPU, configuration paths, enabled modules (as repo-relative file paths), packages, constraints — content schema
 - [x] Generated file includes timestamp for freshness
@@ -245,8 +245,8 @@ A `home/common/agent-context.nix` using `home.activation` instead of `system.act
 ### Quality Gates
 
 - [x] `nix flake check` passes
-- [ ] `bash apps/build-switch` succeeds and generates the context file
-- [ ] Manual verification: context file accurately reflects system state
+- [x] `bash apps/build-switch` succeeds and generates the context file
+- [x] Manual verification: context file accurately reflects system state
 - [ ] Agent smoke test: open Claude Code, ask "what GPU does this system have?" — should find answer in context without running `lspci`
 
 ## Files to Create/Modify

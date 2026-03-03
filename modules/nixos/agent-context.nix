@@ -4,10 +4,6 @@ let
   release = config.system.nixos.release;
   stateVersion = config.system.stateVersion;
 
-  # Extract package names from environment.systemPackages
-  systemPkgNames = map (p: p.pname or p.name or "unknown") config.environment.systemPackages;
-  systemPkgList = builtins.concatStringsSep "\n" (builtins.sort builtins.lessThan systemPkgNames);
-
   # Local NixOS modules imported for this host (hardcoded — one host, known imports)
   enabledModules = builtins.concatStringsSep "\n" [
     "- modules/nixos/core.nix"
@@ -49,11 +45,11 @@ in
     ## Enabled Modules
     ${enabledModules}
 
-    ## System Packages
-    ${systemPkgList}
+    ## System Packages (core.nix)
+    curl, file, git, htop, sbctl, unzip, wget
 
-    ## User Packages
-    ripgrep, fd, jq, bat, eza, fzf, gh, lazygit, python3, nodejs, rustup, claude-code, codex, gemini-cli, opencode
+    ## User Packages (dev-tools.nix)
+    bat, claude-code, codex, eza, fd, fzf, gemini-cli, gh, jq, lazygit, nodejs, opencode, python3, ripgrep, rustup
 
     ## Constraints
     - Do NOT edit hardware-configuration.nix manually
