@@ -17,4 +17,10 @@
       RUNTIME_PM_DRIVER_DENYLIST = "nvidia";
     };
   };
+
+  services.logind.settings.Login = {
+    HandleLidSwitch = "suspend";
+    HandlePowerKey = "ignore";
+    HandlePowerKeyLongPress = "poweroff";
+  };
 }
