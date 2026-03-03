@@ -36,6 +36,16 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
 - Hyprland `exec-once` and `bind` entries using pipes, `$()`, or `&&` must be wrapped in `sh -c '...'`.
 
+## System Context (Auto-generated)
+
+IMPORTANT: Always read `/etc/agent-context.md` before running system commands or making
+configuration changes. This file contains pre-computed system info that eliminates the
+need for discovery commands like `uname`, `lspci`, or directory exploration.
+
+Run `bash apps/system-status` for a full system health check including the context file.
+
+Do NOT modify `/etc/agent-context.md` — it is auto-generated on every rebuild.
+
 ## Agent Workflow (NixOS Operations)
 
 All `sudo` commands are passwordless for the wheel-group user.

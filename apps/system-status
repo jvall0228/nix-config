@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "=== Agent Context ==="
+cat /etc/agent-context.md
+echo ""
+echo "=== System Health ==="
+systemctl is-system-running || true
+echo ""
+echo "=== Current Generation ==="
+readlink /run/current-system
