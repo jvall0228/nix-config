@@ -1,0 +1,466 @@
+@import "colors.css";
+
+/* ── Global ─────────────────────────────────────────── */
+* {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 14px;
+}
+
+window {
+  background: transparent;
+}
+
+/* ── Popup base ─────────────────────────────────────── */
+.calendar-popup,
+.audiomixer-popup,
+.network-popup,
+.bluetooth-popup,
+.media-popup,
+.dashboard-popup,
+.notification-center {
+  background: var(--base00);
+  border: 1px solid var(--base02);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  margin: 8px;
+}
+
+/* ── Calendar ───────────────────────────────────────── */
+.calendar-container {
+  min-width: 300px;
+}
+
+.calendar-container button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 4px 12px;
+  margin: 2px;
+}
+
+.calendar-container button:hover {
+  background: var(--base02);
+}
+
+calendar {
+  background: var(--base00);
+  color: var(--base05);
+  border-radius: var(--border-radius);
+}
+
+calendar:selected {
+  background: var(--base0D);
+  color: var(--base00);
+}
+
+calendar.header {
+  color: var(--base0D);
+}
+
+/* ── Audio Mixer ────────────────────────────────────── */
+.audiomixer-popup {
+  min-width: 350px;
+}
+
+.volume-slider scale {
+  min-height: 8px;
+}
+
+.volume-slider scale trough {
+  background: var(--base01);
+  border-radius: 4px;
+  min-height: 8px;
+}
+
+.volume-slider scale highlight {
+  background: var(--base0D);
+  border-radius: 4px;
+}
+
+.volume-slider scale slider {
+  background: var(--base05);
+  border-radius: 50%;
+  min-width: 16px;
+  min-height: 16px;
+  margin: -4px 0;
+}
+
+.device-list button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 12px;
+  margin: 2px 0;
+}
+
+.device-list button:hover {
+  background: var(--base02);
+}
+
+.device-list button.active {
+  background: var(--base0D);
+  color: var(--base00);
+}
+
+/* ── Network ────────────────────────────────────────── */
+.network-popup {
+  min-width: 300px;
+  max-height: 500px;
+}
+
+.wifi-toggle {
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.network-list {
+  min-height: 200px;
+}
+
+.network-list button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 12px;
+  margin: 2px 0;
+}
+
+.network-list button:hover {
+  background: var(--base02);
+}
+
+.network-list button.active {
+  border-left: 3px solid var(--base0B);
+}
+
+/* ── Bluetooth ──────────────────────────────────────── */
+.bluetooth-popup {
+  min-width: 300px;
+}
+
+.bt-toggle {
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.bluetooth-popup .device-list button.connected {
+  border-left: 3px solid var(--base0B);
+}
+
+.scan-btn {
+  background: var(--base0D);
+  color: var(--base00);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 16px;
+  margin-top: 8px;
+}
+
+.scan-btn:hover {
+  background: var(--base0E);
+}
+
+/* ── Media Player ───────────────────────────────────── */
+.media-popup {
+  min-width: 350px;
+}
+
+.album-art {
+  min-width: 200px;
+  min-height: 200px;
+  border-radius: var(--border-radius);
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 12px;
+}
+
+.media-controls button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: 50%;
+  min-width: 40px;
+  min-height: 40px;
+  margin: 0 4px;
+}
+
+.media-controls button:hover {
+  background: var(--base02);
+}
+
+.media-controls button.play-pause {
+  background: var(--base0D);
+  color: var(--base00);
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.progress-bar scale trough {
+  background: var(--base01);
+  border-radius: 4px;
+  min-height: 6px;
+}
+
+.progress-bar scale highlight {
+  background: var(--base0D);
+  border-radius: 4px;
+}
+
+.progress-bar scale slider {
+  background: var(--base05);
+  border-radius: 50%;
+  min-width: 12px;
+  min-height: 12px;
+  margin: -3px 0;
+}
+
+/* ── Dashboard ──────────────────────────────────────── */
+.dashboard-popup {
+  min-width: 380px;
+}
+
+.profile-card {
+  padding: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.profile-card .username {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--base05);
+}
+
+.profile-card .hostname {
+  color: var(--base03);
+  font-size: 12px;
+}
+
+.profile-card .uptime {
+  color: var(--base04);
+  font-size: 12px;
+}
+
+.quick-settings {
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.quick-settings button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 8px 12px;
+  margin: 3px;
+  min-width: 80px;
+}
+
+.quick-settings button:hover {
+  background: var(--base02);
+}
+
+.quick-settings button.active {
+  background: var(--base0D);
+  color: var(--base00);
+}
+
+.system-stats {
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.system-stats levelbar trough {
+  min-height: 8px;
+  border-radius: 4px;
+  background: var(--base01);
+}
+
+.system-stats levelbar block.filled {
+  background: var(--base0D);
+  border-radius: 4px;
+}
+
+.system-stats levelbar block.filled.high {
+  background: var(--base09);
+}
+
+.system-stats levelbar block.filled.full {
+  background: var(--base08);
+}
+
+.session-actions {
+  padding: 8px 0;
+}
+
+.session-actions button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 10px;
+  margin: 3px;
+  min-width: 60px;
+}
+
+.session-actions button:hover {
+  background: var(--base08);
+  color: var(--base00);
+}
+
+/* ── Notifications ──────────────────────────────────── */
+.notification-popup {
+  margin: 8px;
+}
+
+.notification-card {
+  background: var(--base00);
+  border: 1px solid var(--base02);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  margin: 4px 0;
+}
+
+.notification-card.urgency-critical {
+  border-color: var(--base08);
+}
+
+.notification-card.urgency-low {
+  opacity: 0.8;
+}
+
+.notification-card .summary {
+  font-weight: bold;
+  color: var(--base05);
+}
+
+.notification-card .body {
+  color: var(--base04);
+  font-size: 13px;
+}
+
+.notification-card .app-name {
+  color: var(--base03);
+  font-size: 11px;
+}
+
+.notification-actions button {
+  background: var(--base01);
+  color: var(--base05);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 4px 12px;
+  margin: 2px;
+}
+
+.notification-actions button:hover {
+  background: var(--base0D);
+  color: var(--base00);
+}
+
+.notification-center {
+  min-width: 380px;
+  min-height: 400px;
+}
+
+.notification-center .header {
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--base02);
+}
+
+.notification-center .clear-all {
+  background: var(--base08);
+  color: var(--base00);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 4px 12px;
+}
+
+.notification-center .empty {
+  color: var(--base03);
+  padding: 40px;
+}
+
+/* ── OSD ────────────────────────────────────────────── */
+.osd-popup {
+  background: var(--base00);
+  border: 1px solid var(--base02);
+  border-radius: var(--border-radius);
+  padding: 12px 20px;
+  margin-bottom: 60px;
+  min-width: 300px;
+}
+
+.osd-icon {
+  font-size: 24px;
+  color: var(--base0D);
+  margin-right: 12px;
+}
+
+.osd-bar levelbar trough {
+  min-height: 8px;
+  min-width: 200px;
+  border-radius: 4px;
+  background: var(--base01);
+}
+
+.osd-bar levelbar block.filled {
+  background: var(--base0D);
+  border-radius: 4px;
+}
+
+.osd-value {
+  color: var(--base04);
+  font-size: 14px;
+  margin-left: 12px;
+  min-width: 40px;
+}
+
+/* ── Switch styling ─────────────────────────────────── */
+switch {
+  background: var(--base02);
+  border-radius: 12px;
+  min-width: 40px;
+  min-height: 20px;
+}
+
+switch:checked {
+  background: var(--base0D);
+}
+
+switch slider {
+  background: var(--base05);
+  border-radius: 50%;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 2px;
+}
+
+/* ── Scrollbar ──────────────────────────────────────── */
+scrollbar slider {
+  background: var(--base02);
+  border-radius: 4px;
+  min-width: 6px;
+}
+
+scrollbar slider:hover {
+  background: var(--base03);
+}
+
+/* ── Section headers ────────────────────────────────── */
+.section-header {
+  color: var(--base03);
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 8px 0 4px 0;
+}

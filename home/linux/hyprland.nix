@@ -3,7 +3,7 @@
   home.packages = with pkgs; [
     kitty
     rofi
-    swaynotificationcenter
+    rofi-emoji
     hyprlock
     hypridle
     wlogout
@@ -13,11 +13,11 @@
     slurp
     brightnessctl
     playerctl
-    swayosd
-    networkmanagerapplet
-    blueman
+    nautilus
     wl-screenrec
     hyprpicker
+    wttrbar
+    wtype  # needed by rofi-emoji to type emoji
   ];
 
   wayland.windowManager.hyprland = {
@@ -28,15 +28,12 @@
 
       exec-once = [
         "waybar"
-        "swaync"
+        "ags run"
         "wallpaper-init"
         "wallpaper-battery-monitor"
-        "nm-applet --indicator"
-        "blueman-applet"
         "/run/current-system/sw/bin/polkit-kde-agent-1"
         "wl-paste --type text --watch cliphist store"
         "wl-paste --type image --watch cliphist store"
-        "swayosd-server"
       ];
 
       env = [
@@ -56,7 +53,12 @@
         "$mod, M, exec, wlogout"
         "$mod SHIFT, L, exec, hyprlock"
         "$mod, W, exec, sh -c 'rofi -show wallpaper -modi \"wallpaper:wallpaper-menu\" -show-icons -theme-str \"listview { columns: 3; lines: 3; }\" -theme-str \"element-icon { size: 150px; }\"'"
-        "$mod, N, exec, swaync-client -t -sw"
+        "$mod, N, exec, ags request toggle notifications"
+        "$mod, A, exec, ags request toggle dashboard"
+        "$mod SHIFT, R, exec, sh -c 'if pgrep -x wl-screenrec > /dev/null; then pkill -x wl-screenrec; else mkdir -p ~/Videos && wl-screenrec -f ~/Videos/recording-$(date +%Y%m%d-%H%M%S).mp4; fi'"
+        "$mod SHIFT, C, exec, hyprpicker -a"
+        "ALT, Tab, exec, rofi -show window"
+        "$mod, period, exec, rofi -show emoji -modi emoji"
         "SUPER, C, exec, sh -c 'cliphist list | rofi -dmenu | cliphist decode | wl-copy'"
         "$mod, H, movefocus, l"
         "$mod, L, movefocus, r"
@@ -81,22 +83,21 @@
         "$mod SHIFT, 8, movetoworkspace, 8"
         "$mod SHIFT, 9, movetoworkspace, 9"
         "$mod SHIFT, S, exec, sh -c 'rofi -show capture -modi \"capture:capture-menu\"'"
-        "$mod SHIFT, P, exec, hyprpicker -a"
       ];
 
       bindl = [
-        ", XF86AudioRaiseVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"
-        ", XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
-        ", XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
-        ", XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
+        ", XF86AudioRaiseVolume, exec, sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ && ags request osd volume'"
+        ", XF86AudioLowerVolume, exec, sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && ags request osd volume'"
+        ", XF86AudioMute, exec, sh -c 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && ags request osd volume'"
+        ", XF86AudioMicMute, exec, sh -c 'wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle && ags request osd mic'"
         ", XF86AudioPlay, exec, playerctl play-pause"
         ", XF86AudioNext, exec, playerctl next"
         ", XF86AudioPrev, exec, playerctl previous"
       ];
 
       binde = [
-        ", XF86MonBrightnessUp, exec, brightnessctl set 5%+"
-        ", XF86MonBrightnessDown, exec, brightnessctl set 5%-"
+        ", XF86MonBrightnessUp, exec, sh -c 'brightnessctl set 5%+ && ags request osd brightness'"
+        ", XF86MonBrightnessDown, exec, sh -c 'brightnessctl set 5%- && ags request osd brightness'"
       ];
 
       general = { gaps_in = 5; gaps_out = 10; border_size = 2; };
