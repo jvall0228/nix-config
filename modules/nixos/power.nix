@@ -14,6 +14,7 @@
       RUNTIME_PM_ON_BAT = "auto";
       START_CHARGE_THRESH_BAT0 = 20;
       STOP_CHARGE_THRESH_BAT0 = 80;
+      RUNTIME_PM_DRIVER_DENYLIST = "nvidia";
     };
   };
 }

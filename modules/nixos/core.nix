@@ -16,7 +16,7 @@
     "kernel.kptr_restrict" = 2;
     "kernel.yama.ptrace_scope" = 1;
     "kernel.dmesg_restrict" = 1;
-    "kernel.sysrq" = 0;
+    "kernel.sysrq" = 176;
     "fs.protected_symlinks" = 1;
     "fs.protected_hardlinks" = 1;
     "net.ipv4.conf.all.rp_filter" = 1;
