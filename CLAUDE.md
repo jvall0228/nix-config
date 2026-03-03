@@ -36,6 +36,17 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
 - Hyprland `exec-once` and `bind` entries using pipes, `$()`, or `&&` must be wrapped in `sh -c '...'`.
 
+## System Context
+
+This system is NixOS 25.11, x86_64-linux, kernel 6.12.74.
+Flake: ~/nix-config#thinkpad.
+GPU: AMD Rembrandt Radeon 680M + NVIDIA (discrete, via nvidia.nix).
+
+Do NOT run discovery commands like `uname`, `lspci`, or directory exploration — use this section instead.
+
+For a full system context dump (also usable by non-Claude agents): `cat /etc/agent-context.md`
+For system health check: `bash apps/system-status`
+
 ## Agent Workflow (NixOS Operations)
 
 All `sudo` commands are passwordless for the wheel-group user.

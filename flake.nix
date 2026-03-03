@@ -55,6 +55,7 @@
           ./modules/nixos/power.nix
           ./modules/nixos/stylix.nix
           ./modules/nixos/greetd.nix
+          ./modules/nixos/agent-context.nix
           stylix.nixosModules.stylix
 
           nixos-hardware.nixosModules.common-cpu-amd
