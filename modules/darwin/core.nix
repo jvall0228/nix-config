@@ -110,7 +110,7 @@
     casks = [
       "aerospace"
       "firefox"
-      "1password"
+      "bitwarden"
       "discord"
       "spotify"
       "obsidian"
