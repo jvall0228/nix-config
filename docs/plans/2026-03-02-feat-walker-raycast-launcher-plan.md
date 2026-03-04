@@ -1,7 +1,7 @@
 ---
 title: "feat: Add Walker as Raycast-like unified command palette"
 type: feat
-status: active
+status: completed
 date: 2026-03-02
 origin: docs/brainstorms/2026-03-02-raycast-ux-linux-brainstorm.md
 ---
