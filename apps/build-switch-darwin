@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FLAKE_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Strip .local suffix from macOS hostname
+HOST="${1:-$(hostname -s)}"
+
+if [[ ! "$HOST" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "Error: Invalid hostname '$HOST'" >&2
+  exit 1
+fi
+
+echo "Building Darwin configuration for '$HOST'..."
+darwin-rebuild switch --flake "$FLAKE_DIR#$HOST"
+echo "Switch complete."

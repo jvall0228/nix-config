@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A flake-based Nix configuration repo managing multiple machines. The primary target is a ThinkPad P15v Gen 3 running NixOS with Hyprland.
+A flake-based Nix configuration repo managing multiple machines. Targets a ThinkPad P15v Gen 3 (NixOS/Hyprland) and a MacBook Pro (Darwin/Aerospace).
 
 ## Repo Layout
 
@@ -10,8 +10,10 @@ A flake-based Nix configuration repo managing multiple machines. The primary tar
 - `hosts/<name>/` — Per-machine config. Each host has `default.nix`, `hardware-configuration.nix`, and optionally `disko.nix`.
 - `modules/shared/` — Nix settings shared across NixOS and Darwin.
 - `modules/nixos/` — NixOS-specific system modules (boot, audio, nvidia, hyprland, power, stylix, greetd).
-- `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific.
+- `modules/darwin/` — Darwin-specific system modules (system.defaults, homebrew, stylix).
+- `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific, `darwin/` is macOS-specific.
 - `home/linux/` — Hyprland, waybar, rofi, hyprlock, wlogout, swaync, starship, desktop apps.
+- `home/darwin/` — Aerospace tiling WM, zsh config.
 - `home/common/` — Shell, git, neovim, kitty, tmux, fastfetch, dev-tools.
 - `apps/` — Shell scripts for common operations (run directly with `bash apps/<name>`).
 - `assets/` — Wallpapers and static assets.
@@ -64,9 +66,30 @@ All `sudo` commands are passwordless for the wheel-group user.
 
 - **Generation limit:** Lanzaboote limits to 10 bootloader entries. Don't apply 10+ broken configs without fixing.
 - **Auto-upgrade:** Runs at 04:00 from `github:jvall0228/nix-config/main`. Local uncommitted changes will be overwritten. Commit and push before expecting persistence.
+
+## Agent Workflow (Darwin Operations)
+
+- **Rebuild system:** `bash apps/build-switch-darwin` (auto-detects hostname)
+- **Rebuild specific host:** `bash apps/build-switch-darwin macbook-pro`
+- **Bootstrap fresh Mac:** `bash apps/bootstrap-darwin`
+- **Dry-build:** `darwin-rebuild build --flake ~/nix-config#macbook-pro`
+- **Homebrew casks:** Auto-updated on every `darwin-rebuild switch`
+
+### Darwin-Specific Constraints
+
+- **No Lanzaboote/disko:** Darwin has no bootloader or disk config to manage.
+- **Homebrew required:** Must be installed before `darwin-rebuild switch`. Bootstrap handles this.
+- **stateVersion is integer:** nix-darwin uses `system.stateVersion = 6` (not a string).
+- **No auto-upgrade:** Darwin requires manual rebuilds (no equivalent to `system.autoUpgrade`).
+- **Touch ID sudo in tmux:** Requires `pam-reattach`. Installed by `modules/darwin/core.nix`.
+- **nix flake check:** Must use `--system x86_64-linux` on NixOS or `--system aarch64-darwin` on Mac.
+- **Store optimization:** `auto-optimise-store` is disabled on Darwin (corrupts store). Run `nix store optimise` manually if store grows large.
+- **trusted-users:** The unprivileged user is in `trusted-users` for passwordless darwin-rebuild. This is a security tradeoff — see `modules/shared/nix.nix`.
+
 ## Do Not
 
 - Hardcode usernames — use the `user` variable.
 - Change `system.stateVersion` or `home.stateVersion` on deployed hosts.
 - Edit `hardware-configuration.nix` manually.
 - Add NixOS-specific options in `home/common/` (use `home/linux/`).
+- Add Darwin-specific options in `home/common/` (use `home/darwin/`).
