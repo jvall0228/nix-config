@@ -1,7 +1,7 @@
 ---
 title: "feat: HyprPanel Feature Parity via Hybrid Waybar + AGS/Astal"
 type: feat
-status: active
+status: completed
 date: 2026-03-02
 origin: docs/brainstorms/2026-03-02-hyprpanel-parity-brainstorm.md
 ---
@@ -239,13 +239,13 @@ modules-right = [
 - Emoji picker: `$mod + .` → `rofi -show emoji -modi emoji` (requires `rofi-emoji` package)
 
 **Acceptance criteria:**
-- [ ] All new Waybar modules render correctly with Stylix theming
-- [ ] GPU temp module works for NVIDIA (`nvidia-smi` available)
-- [ ] Weather module updates without errors
-- [ ] Idle inhibitor toggles hypridle
-- [ ] All new keybinds function
-- [ ] No regressions in existing modules
-- [ ] `nixos-rebuild switch` succeeds
+- [x] All new Waybar modules render correctly with Stylix theming
+- [x] GPU temp module works for NVIDIA (`nvidia-smi` available)
+- [x] Weather module updates without errors
+- [x] Idle inhibitor toggles hypridle
+- [x] All new keybinds function
+- [x] No regressions in existing modules
+- [x] `nixos-rebuild switch` succeeds
 
 ---
 
@@ -344,12 +344,12 @@ App.start({
 ```
 
 **Acceptance criteria:**
-- [ ] `nix flake lock` resolves AGS and Astal inputs
-- [ ] `nixos-rebuild switch` succeeds with AGS module enabled
-- [ ] AGS daemon starts on login
-- [ ] `ags request "hello"` returns a response from the running daemon
-- [ ] `colors.css` is generated with correct Stylix colors
-- [ ] AGS crash does not affect Waybar functionality
+- [x] `nix flake lock` resolves AGS and Astal inputs
+- [x] `nixos-rebuild switch` succeeds with AGS module enabled
+- [x] AGS daemon starts on login
+- [x] `ags request "hello"` returns a response from the running daemon
+- [x] `colors.css` is generated with correct Stylix colors
+- [x] AGS crash does not affect Waybar functionality
 
 ---
 
@@ -398,14 +398,14 @@ clock = {
 ```
 
 **Acceptance criteria:**
-- [ ] Clicking Waybar clock opens AGS calendar popover
-- [ ] Calendar shows correct month/year with today highlighted
-- [ ] Month navigation works (prev/next)
-- [ ] Clicking outside or pressing Escape closes the calendar
-- [ ] Calendar appears on the correct monitor in multi-monitor setup
-- [ ] Styled with Tokyo Night Dark colors from Stylix
-- [ ] Opening calendar while another popup is open closes the other popup
-- [ ] Calendar does not open when screen is locked
+- [x] Clicking Waybar clock opens AGS calendar popover
+- [x] Calendar shows correct month/year with today highlighted
+- [x] Month navigation works (prev/next)
+- [x] Clicking outside or pressing Escape closes the calendar
+- [x] Calendar appears on the correct monitor in multi-monitor setup
+- [x] Styled with Tokyo Night Dark colors from Stylix
+- [x] Opening calendar while another popup is open closes the other popup
+- [x] Calendar does not open when screen is locked
 
 ---
 
@@ -503,16 +503,16 @@ mpris = {
 ```
 
 **Acceptance criteria (all Phase 4 widgets):**
-- [ ] Each popup opens from Waybar click and closes on click-outside/Escape
-- [ ] Singleton behavior: opening one closes others
-- [ ] Correct monitor targeting on multi-monitor
-- [ ] Styled with Stylix base16 colors
-- [ ] Middle-click fallback actions work independently of AGS
-- [ ] Data updates reactively (volume changes, network connects, device pairs)
-- [ ] Audio mixer: per-app sliders appear for running audio apps
-- [ ] Network: can connect to a new WiFi network end-to-end
-- [ ] Bluetooth: can pair and connect a new device end-to-end
-- [ ] Media: progress bar updates in real-time during playback
+- [x] Each popup opens from Waybar click and closes on click-outside/Escape
+- [x] Singleton behavior: opening one closes others
+- [x] Correct monitor targeting on multi-monitor
+- [x] Styled with Stylix base16 colors
+- [x] Middle-click fallback actions work independently of AGS
+- [x] Data updates reactively (volume changes, network connects, device pairs)
+- [x] Audio mixer: per-app sliders appear for running audio apps
+- [x] Network: can connect to a new WiFi network end-to-end
+- [x] Bluetooth: can pair and connect a new device end-to-end
+- [x] Media: progress bar updates in real-time during playback
 
 ---
 
@@ -574,14 +574,14 @@ mpris = {
 - Screen recording: start/stop `wl-screenrec` with PID tracking
 
 **Acceptance criteria:**
-- [ ] Dashboard opens/closes with `$mod + A`
-- [ ] User avatar, hostname, uptime display correctly
-- [ ] All quick settings toggles function and reflect current state
-- [ ] System stats update reactively (CPU, RAM, GPU)
-- [ ] TLP profile and battery info display correctly
-- [ ] Session actions (lock, logout, etc.) work
-- [ ] Dashboard closes when any session action is invoked
-- [ ] Styled consistently with all other AGS widgets
+- [x] Dashboard opens/closes with `$mod + A`
+- [x] User avatar, hostname, uptime display correctly
+- [x] All quick settings toggles function and reflect current state
+- [x] System stats update reactively (CPU, RAM, GPU)
+- [x] TLP profile and battery info display correctly
+- [x] Session actions (lock, logout, etc.) work
+- [x] Dashboard closes when any session action is invoked
+- [x] Styled consistently with all other AGS widgets
 
 ---
 
@@ -640,17 +640,17 @@ Keybind changes in `hyprland.nix`:
 8. Rebuild and verify
 
 **Acceptance criteria:**
-- [ ] Application notifications appear as popups (top-right)
-- [ ] Popups auto-dismiss after 5s (configurable)
-- [ ] `$mod + N` opens notification center panel
-- [ ] Notification history shows all received notifications
-- [ ] Clear individual and clear all work
-- [ ] DND mode suppresses popups but stores in history
-- [ ] Critical notifications bypass DND
-- [ ] Volume/brightness OSD appears on hardware key press
-- [ ] OSD auto-fades after 1.5s
-- [ ] No duplicate notifications (swaync fully removed)
-- [ ] Notifications do not appear above hyprlock (security)
+- [x] Application notifications appear as popups (top-right)
+- [x] Popups auto-dismiss after 5s (configurable)
+- [x] `$mod + N` opens notification center panel
+- [x] Notification history shows all received notifications
+- [x] Clear individual and clear all work
+- [x] DND mode suppresses popups but stores in history
+- [x] Critical notifications bypass DND
+- [x] Volume/brightness OSD appears on hardware key press
+- [x] OSD auto-fades after 1.5s
+- [x] No duplicate notifications (swaync fully removed)
+- [x] Notifications do not appear above hyprlock (security)
 
 ## System-Wide Impact
 

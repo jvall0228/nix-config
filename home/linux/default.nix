@@ -11,5 +11,6 @@
     ./wallpaper.nix
     ./capture.nix
     ./walker.nix
+    ./ags.nix
   ];
 }
