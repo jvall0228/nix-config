@@ -9,23 +9,36 @@ A flake-based Nix configuration repo managing multiple machines. Targets a Think
 - `flake.nix` — Entry point. Defines all host configurations and inputs.
 - `hosts/<name>/` — Per-machine config. Each host has `default.nix`, `hardware-configuration.nix`, and optionally `disko.nix`.
 - `modules/shared/` — Nix settings shared across NixOS and Darwin.
-- `modules/nixos/` — NixOS-specific system modules (boot, audio, nvidia, hyprland, power, stylix, greetd).
+- `modules/nixos/` — NixOS-specific system modules (core, audio, nvidia, hyprland, power, stylix, greetd, agent-context).
 - `modules/darwin/` — Darwin-specific system modules (system.defaults, homebrew, stylix).
 - `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific, `darwin/` is macOS-specific.
-- `home/linux/` — Hyprland, waybar, rofi, hyprlock, wlogout, swaync, starship, desktop apps.
+- `home/linux/` — Hyprland, waybar, AGS, rofi, walker, hyprlock, wlogout, swaync, starship, wallpaper, capture, desktop apps.
 - `home/darwin/` — Aerospace tiling WM, zsh config.
 - `home/common/` — Shell, git, neovim, kitty, tmux, fastfetch, dev-tools.
 - `apps/` — Shell scripts for common operations (run directly with `bash apps/<name>`).
 - `assets/` — Wallpapers and static assets.
 
+## Flake Inputs
+
+- `nixpkgs` / `nixpkgs-unstable` — stable (25.11) and unstable package sets.
+- `home-manager` — user-level config (release-25.11, follows nixpkgs).
+- `nixos-hardware` — hardware-specific optimizations (AMD CPU, laptop, SSD).
+- `disko` — declarative disk partitioning.
+- `lanzaboote` — Secure Boot (v1.0.0).
+- `stylix` — system-wide theming (release-25.11).
+- `walker` — application launcher.
+- `ags` / `astal` — shell widgets (AGS v3 with Astal library).
+- `nix-darwin` — macOS system management (nix-darwin-25.11).
+
 ## Conventions
 
 - **Language:** Nix (the language). All `.nix` files.
 - **User variable:** Parameterized via `specialArgs` as `user`. Never hardcode `javels` in modules — use `${user}`.
+- **specialArgs:** NixOS and Darwin system modules receive `inputs`, `user`, `unstable`. Home-manager modules receive `inputs`, `user`, `system`, `unstable` via `extraSpecialArgs`.
 - **Unstable packages:** Available via `unstable` in `specialArgs`. Use for packages that need bleeding edge (e.g., `unstable.claude-code`).
-- **Platform guards:** Use `lib.optionals pkgs.stdenv.isLinux` / `isDarwin` for platform-specific imports.
-- **Adding a host:** Create `hosts/<name>/default.nix`, add a `nixosConfigurations.<name>` block in `flake.nix`, pick modules.
-- **State version:** `25.05` — do not change this on existing hosts.
+- **Platform guards:** In system modules use `lib.mkIf pkgs.stdenv.isLinux`. In `home/default.nix`, platform detection uses `builtins.elem system [ "x86_64-linux" ... ]` with the `system` specialArg.
+- **Adding a host:** Create `hosts/<name>/default.nix`, add a `nixosConfigurations.<name>` (or `darwinConfigurations.<name>`) block in `flake.nix`, pick modules.
+- **State version:** NixOS uses `"25.05"` (string). Darwin uses `6` (integer). Do not change on existing hosts.
 
 ## Key Patterns
 
@@ -33,7 +46,9 @@ A flake-based Nix configuration repo managing multiple machines. Targets a Think
 - `hardware-configuration.nix` is machine-generated. Don't hand-edit it.
 - `disko.nix` defines declarative disk layout. Only modify when changing partition scheme.
 - System packages go in `modules/nixos/core.nix`. User packages go in `home/common/dev-tools.nix` or platform-specific home modules.
-- Stylix (`modules/nixos/stylix.nix`) manages theming globally — Tokyo Night Dark, JetBrains Mono NF, Bibata cursor. It auto-targets kitty, waybar, hyprlock, GTK, QT. Use `stylix.targets.<name>.enable = false` to opt out specific apps. Don't set `qt.platformTheme` or manual color configs that conflict with Stylix.
+- Stylix is split across three files: `modules/shared/stylix.nix` (base colors, monospace font), `modules/nixos/stylix.nix` (sans/serif/emoji fonts, cursor, `autoEnable = true`), `modules/darwin/stylix.nix` (`autoEnable = false` — HM-level targets like kitty/bat/btop still auto-theme). Use `stylix.targets.<name>.enable = false` to opt out specific apps. Don't set `qt.platformTheme` or manual color configs that conflict with Stylix.
+- AGS uses `configDir` with `symlinkJoin` to inject a generated `colors.css` from Stylix base16 colors into the config directory. See `home/linux/ags.nix`.
+- When a program lacks a home-manager module (e.g., Aerospace), write config directly via `home.file."<path>".text`.
 - `rofi-wayland` was merged into `rofi` in nixpkgs 25.11 — use `pkgs.rofi`.
 - `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
 - Hyprland `exec-once` and `bind` entries using pipes, `$()`, or `&&` must be wrapped in `sh -c '...'`.
