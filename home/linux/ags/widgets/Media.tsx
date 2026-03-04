@@ -1,5 +1,6 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
-import { bind, Variable, interval } from "astal";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
+import { createBinding, createState } from "ags";
+import { interval } from "ags/time";
 import Mpris from "gi://AstalMpris";
 import { registerPopup } from "../lib/popups";
 
@@ -36,29 +37,29 @@ function cycleLoop(player: Mpris.Player) {
 }
 
 function PlayerView({ player }: { player: Mpris.Player }) {
-  const position = Variable(player.position);
+  const [position, setPosition] = createState(player.position);
 
   const tick = interval(1000, () => {
     if (player.playbackStatus === Mpris.PlaybackStatus.PLAYING) {
-      position.set(player.position);
+      setPosition(player.position);
     }
   });
 
   // Also sync when position changes externally (seek, track change)
   player.connect("notify::position", () => {
-    position.set(player.position);
+    setPosition(player.position);
   });
 
   return (
     <box
-      className="media-content"
+      class="media-content"
       vertical
       onDestroy={() => tick.cancel()}
     >
-      <box className="album-art-container">
+      <box class="album-art-container">
         <box
-          className="album-art"
-          css={bind(player, "coverArt").as(
+          class="album-art"
+          css={createBinding(player, "coverArt").as(
             (art) =>
               art
                 ? `background-image: url("${art}"); background-size: cover; background-position: center; min-width: 200px; min-height: 200px;`
@@ -67,61 +68,61 @@ function PlayerView({ player }: { player: Mpris.Player }) {
         />
       </box>
 
-      <box className="track-info" vertical>
+      <box class="track-info" vertical>
         <label
-          className="track-title"
-          label={bind(player, "title").as((t) => t || "Unknown Title")}
+          class="track-title"
+          label={createBinding(player, "title").as((t) => t || "Unknown Title")}
           truncate
           maxWidthChars={30}
           xalign={0}
         />
         <label
-          className="track-artist"
-          label={bind(player, "artist").as((a) => a || "Unknown Artist")}
+          class="track-artist"
+          label={createBinding(player, "artist").as((a) => a || "Unknown Artist")}
           truncate
           maxWidthChars={30}
           xalign={0}
         />
         <label
-          className="track-album"
-          label={bind(player, "album").as((a) => a || "")}
+          class="track-album"
+          label={createBinding(player, "album").as((a) => a || "")}
           truncate
           maxWidthChars={30}
           xalign={0}
-          visible={bind(player, "album").as((a) => !!a)}
+          visible={createBinding(player, "album").as((a) => !!a)}
         />
       </box>
 
-      <box className="progress-bar" vertical>
+      <box class="progress-bar" vertical>
         <slider
-          className="progress-slider"
+          class="progress-slider"
           drawValue={false}
           min={0}
-          max={bind(player, "length").as((l) => (l > 0 ? l : 1))}
-          value={bind(position)}
+          max={createBinding(player, "length").as((l) => (l > 0 ? l : 1))}
+          value={position}
           onDragged={({ value }) => {
             player.set_position(value);
-            position.set(value);
+            setPosition(value);
           }}
         />
-        <box className="progress-times" homogeneous={false}>
+        <box class="progress-times" homogeneous={false}>
           <label
-            className="progress-elapsed"
-            label={bind(position).as(formatTime)}
+            class="progress-elapsed"
+            label={position.as(formatTime)}
             hexpand
             xalign={0}
           />
           <label
-            className="progress-total"
-            label={bind(player, "length").as(formatTime)}
+            class="progress-total"
+            label={createBinding(player, "length").as(formatTime)}
             xalign={1}
           />
         </box>
       </box>
 
-      <box className="media-controls" halign={Gtk.Align.CENTER}>
+      <box class="media-controls" halign={Gtk.Align.CENTER}>
         <button
-          className={bind(player, "shuffleStatus").as(
+          class={createBinding(player, "shuffleStatus").as(
             (s) => (s === Mpris.Shuffle.ON ? "shuffle active" : "shuffle"),
           )}
           onClick={() => {
@@ -135,19 +136,19 @@ function PlayerView({ player }: { player: Mpris.Player }) {
         </button>
 
         <button
-          className="previous"
-          sensitive={bind(player, "canGoPrevious")}
+          class="previous"
+          sensitive={createBinding(player, "canGoPrevious")}
           onClick={() => player.previous()}
         >
           <label label="&#xf048;" />
         </button>
 
         <button
-          className="play-pause"
+          class="play-pause"
           onClick={() => player.play_pause()}
         >
           <label
-            label={bind(player, "playbackStatus").as((s) =>
+            label={createBinding(player, "playbackStatus").as((s) =>
               s === Mpris.PlaybackStatus.PLAYING
                 ? "\uf04c"
                 : "\uf04b",
@@ -156,21 +157,21 @@ function PlayerView({ player }: { player: Mpris.Player }) {
         </button>
 
         <button
-          className="next"
-          sensitive={bind(player, "canGoNext")}
+          class="next"
+          sensitive={createBinding(player, "canGoNext")}
           onClick={() => player.next()}
         >
           <label label="&#xf051;" />
         </button>
 
         <button
-          className={bind(player, "loopStatus").as(
+          class={createBinding(player, "loopStatus").as(
             (s) => (s !== Mpris.Loop.NONE ? "loop active" : "loop"),
           )}
           onClick={() => cycleLoop(player)}
         >
           <label
-            label={bind(player, "loopStatus").as(loopIconFor)}
+            label={createBinding(player, "loopStatus").as(loopIconFor)}
           />
         </button>
       </box>
@@ -184,13 +185,12 @@ function MediaPlayer() {
   return (
     <window
       name="media"
-      className="media-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => registerPopup("media", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("media", self)}
       onKeyPressEvent={(self, event) => {
         const [, keyval] = event.get_keyval();
         if (keyval === Gdk.KEY_Escape) {
@@ -198,21 +198,31 @@ function MediaPlayer() {
         }
       }}
     >
-      <box className="media-container" vertical>
-        {bind(mpris, "players").as((players) =>
-          players.length > 0 ? (
-            <PlayerView player={players[0]} />
-          ) : (
-            <box
-              className="no-media"
-              halign={Gtk.Align.CENTER}
-              valign={Gtk.Align.CENTER}
-            >
-              <label label="No media playing" />
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="media-popup" vertical>
+              {createBinding(mpris, "players").as((players) =>
+                players.length > 0 ? (
+                  <PlayerView player={players[0]} />
+                ) : (
+                  <box
+                    class="no-media"
+                    halign={Gtk.Align.CENTER}
+                    valign={Gtk.Align.CENTER}
+                  >
+                    <label label="No media playing" />
+                  </box>
+                ),
+              )}
             </box>
-          ),
-        )}
-      </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

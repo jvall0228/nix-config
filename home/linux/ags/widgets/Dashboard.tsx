@@ -1,51 +1,52 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
-import { bind, Variable, interval } from "astal";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
+import { createBinding, createState, type Accessor } from "ags";
+import { createPoll } from "ags/time";
 import { registerPopup } from "../lib/popups";
-import { sh, shSync, readFile } from "../lib/utils";
+import { sh, shSync } from "../lib/utils";
 
 // Polling variables for system stats
-const cpuUsage = Variable("0").poll(3000, ["sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $2}'"]);
-const ramUsage = Variable("0").poll(3000, ["sh", "-c", "free | awk '/Mem:/ {printf \"%.0f\", $3/$2*100}'"]);
-const gpuUsage = Variable("0").poll(5000, ["sh", "-c", "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
-const diskUsage = Variable("0").poll(60000, ["sh", "-c", "df / | awk 'NR==2 {print $5}' | tr -d '%'"]);
-const cpuTemp = Variable("0").poll(3000, ["sh", "-c", "cat /sys/class/hwmon/hwmon3/temp1_input | awk '{printf \"%.0f\", $1/1000}'"]);
-const gpuTemp = Variable("0").poll(5000, ["sh", "-c", "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
-const uptime = Variable("").poll(60000, ["sh", "-c", "uptime -p | sed 's/up //'"]);
-const hostname = Variable(shSync("hostname"));
-const username = Variable(shSync("whoami"));
+const cpuUsage = createPoll("0", 3000, ["sh", "-c", "top -bn1 | grep 'Cpu(s)' | awk '{print $2}'"]);
+const ramUsage = createPoll("0", 3000, ["sh", "-c", "free | awk '/Mem:/ {printf \"%.0f\", $3/$2*100}'"]);
+const gpuUsage = createPoll("0", 5000, ["sh", "-c", "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
+const diskUsage = createPoll("0", 60000, ["sh", "-c", "df / | awk 'NR==2 {print $5}' | tr -d '%'"]);
+const cpuTemp = createPoll("0", 3000, ["sh", "-c", "cat /sys/class/hwmon/hwmon3/temp1_input | awk '{printf \"%.0f\", $1/1000}'"]);
+const gpuTemp = createPoll("0", 5000, ["sh", "-c", "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
+const uptime = createPoll("", 60000, ["sh", "-c", "uptime -p | sed 's/up //'"]);
+const [hostname] = createState(shSync("hostname"));
+const [username] = createState(shSync("whoami"));
 
 // Quick settings state
-const dndEnabled = Variable(false);
-const wifiEnabled = Variable(shSync("nmcli radio wifi").trim() === "enabled");
-const btEnabled = Variable(shSync("bluetoothctl show | grep 'Powered:' | awk '{print $2}'").trim() === "yes");
-const nightLightOn = Variable(shSync("pgrep wlsunset > /dev/null && echo 1 || echo 0").trim() === "1");
-const idleInhibited = Variable(shSync("systemctl --user is-active hypridle.service 2>/dev/null").trim() !== "active");
-const screenRecording = Variable(false);
+const [dndEnabled, setDndEnabled] = createState(false);
+const [wifiEnabled, setWifiEnabled] = createState(shSync("nmcli radio wifi").trim() === "enabled");
+const [btEnabled, setBtEnabled] = createState(shSync("bluetoothctl show | grep 'Powered:' | awk '{print $2}'").trim() === "yes");
+const [nightLightOn, setNightLightOn] = createState(shSync("pgrep wlsunset > /dev/null && echo 1 || echo 0").trim() === "1");
+const [idleInhibited, setIdleInhibited] = createState(shSync("systemctl --user is-active hypridle.service 2>/dev/null").trim() !== "active");
+const [screenRecording, setScreenRecording] = createState(false);
 let screenRecPid: string | null = null;
 
 // Battery polling
-const batteryPercent = Variable("0").poll(10000, ["sh", "-c", "cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 0"]);
-const batteryStatus = Variable("Unknown").poll(10000, ["sh", "-c", "cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo 'Unknown'"]);
+const batteryPercent = createPoll("0", 10000, ["sh", "-c", "cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo 0"]);
+const batteryStatus = createPoll("Unknown", 10000, ["sh", "-c", "cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo 'Unknown'"]);
 
 function ProfileCard() {
   return (
-    <box className="profile-card" vertical spacing={4}>
+    <box class="profile-card" vertical spacing={4}>
       <box spacing={12}>
         <icon icon="avatar-default-symbolic" css="font-size: 48px;" />
         <box vertical valign={Gtk.Align.CENTER}>
           <label
-            className="profile-username"
-            label={bind(username)}
+            class="profile-username"
+            label={username}
             halign={Gtk.Align.START}
           />
           <label
-            className="profile-hostname"
-            label={bind(hostname).as((h) => `@${h}`)}
+            class="profile-hostname"
+            label={hostname.as((h) => `@${h}`)}
             halign={Gtk.Align.START}
           />
           <label
-            className="profile-uptime"
-            label={bind(uptime).as((u) => `up ${u}`)}
+            class="profile-uptime"
+            label={uptime.as((u) => `up ${u}`)}
             halign={Gtk.Align.START}
           />
         </box>
@@ -62,12 +63,12 @@ function ToggleButton({
 }: {
   icon: string;
   label: string;
-  active: Variable<boolean>;
+  active: Accessor<boolean>;
   onToggle: () => void;
 }) {
   return (
     <button
-      className={bind(active).as((a) => `toggle-btn ${a ? "active" : ""}`)}
+      class={active.as((a) => `toggle-btn ${a ? "active" : ""}`)}
       onClick={onToggle}
     >
       <box vertical spacing={4} halign={Gtk.Align.CENTER}>
@@ -80,17 +81,17 @@ function ToggleButton({
 
 function QuickSettings() {
   return (
-    <box className="quick-settings" vertical spacing={8}>
-      <label label="Quick Settings" halign={Gtk.Align.START} className="section-title" />
+    <box class="quick-settings" vertical spacing={8}>
+      <label label="Quick Settings" halign={Gtk.Align.START} class="section-title" />
       <box homogeneous spacing={8}>
         <ToggleButton
           icon="network-wireless-symbolic"
           label="WiFi"
           active={wifiEnabled}
           onToggle={() => {
-            const next = !wifiEnabled.get();
+            const next = !wifiEnabled.peek();
             sh(`nmcli radio wifi ${next ? "on" : "off"}`);
-            wifiEnabled.set(next);
+            setWifiEnabled(next);
           }}
         />
         <ToggleButton
@@ -98,9 +99,9 @@ function QuickSettings() {
           label="BT"
           active={btEnabled}
           onToggle={() => {
-            const next = !btEnabled.get();
+            const next = !btEnabled.peek();
             sh(`bluetoothctl power ${next ? "on" : "off"}`);
-            btEnabled.set(next);
+            setBtEnabled(next);
           }}
         />
         <ToggleButton
@@ -108,7 +109,7 @@ function QuickSettings() {
           label="DND"
           active={dndEnabled}
           onToggle={() => {
-            dndEnabled.set(!dndEnabled.get());
+            setDndEnabled(!dndEnabled.peek());
           }}
         />
       </box>
@@ -118,12 +119,12 @@ function QuickSettings() {
           label="Night Light"
           active={nightLightOn}
           onToggle={() => {
-            if (nightLightOn.get()) {
+            if (nightLightOn.peek()) {
               sh("pkill wlsunset");
             } else {
               sh("wlsunset -t 4000 -T 6500");
             }
-            nightLightOn.set(!nightLightOn.get());
+            setNightLightOn(!nightLightOn.peek());
           }}
         />
         <ToggleButton
@@ -131,12 +132,12 @@ function QuickSettings() {
           label="Idle"
           active={idleInhibited}
           onToggle={() => {
-            if (idleInhibited.get()) {
+            if (idleInhibited.peek()) {
               sh("systemctl --user start hypridle.service");
             } else {
               sh("systemctl --user stop hypridle.service");
             }
-            idleInhibited.set(!idleInhibited.get());
+            setIdleInhibited(!idleInhibited.peek());
           }}
         />
         <ToggleButton
@@ -144,14 +145,14 @@ function QuickSettings() {
           label="Screen Rec"
           active={screenRecording}
           onToggle={() => {
-            if (screenRecording.get() && screenRecPid) {
+            if (screenRecording.peek() && screenRecPid) {
               sh(`kill ${screenRecPid}`);
               screenRecPid = null;
-              screenRecording.set(false);
+              setScreenRecording(false);
             } else {
               sh("wl-screenrec -f /tmp/recording.mp4 & echo $!").then((pid) => {
                 screenRecPid = pid.trim();
-                screenRecording.set(true);
+                setScreenRecording(true);
               });
             }
           }}
@@ -167,20 +168,20 @@ function StatBar({
   suffix,
 }: {
   label: string;
-  value: Variable<string>;
+  value: Accessor<string>;
   suffix?: string;
 }) {
   return (
     <box spacing={8}>
       <label label={labelText} widthChars={5} halign={Gtk.Align.START} />
       <levelbar
-        className="stat-bar"
+        class="stat-bar"
         hexpand
         maxValue={100}
-        value={bind(value).as((v) => parseFloat(v) || 0)}
+        value={value.as((v) => parseFloat(v) || 0)}
       />
       <label
-        label={bind(value).as((v) => `${v}${suffix || "%"}`)}
+        label={value.as((v) => `${v}${suffix || "%"}`)}
         widthChars={6}
         halign={Gtk.Align.END}
       />
@@ -190,20 +191,20 @@ function StatBar({
 
 function SystemStats() {
   return (
-    <box className="system-stats" vertical spacing={8}>
-      <label label="System" halign={Gtk.Align.START} className="section-title" />
+    <box class="system-stats" vertical spacing={8}>
+      <label label="System" halign={Gtk.Align.START} class="section-title" />
       <StatBar label="CPU" value={cpuUsage} />
       <StatBar label="RAM" value={ramUsage} />
       <StatBar label="GPU" value={gpuUsage} />
       <StatBar label="Disk" value={diskUsage} />
-      <box className="temps" spacing={16}>
+      <box class="temps" spacing={16}>
         <label
-          label={bind(cpuTemp).as((t) => `CPU: ${t}°C`)}
+          label={cpuTemp.as((t) => `CPU: ${t}°C`)}
           halign={Gtk.Align.START}
           hexpand
         />
         <label
-          label={bind(gpuTemp).as((t) => `GPU: ${t}°C`)}
+          label={gpuTemp.as((t) => `GPU: ${t}°C`)}
           halign={Gtk.Align.END}
           hexpand
         />
@@ -214,30 +215,30 @@ function SystemStats() {
 
 function PowerSection() {
   return (
-    <box className="power-section" vertical spacing={8}>
-      <label label="Power" halign={Gtk.Align.START} className="section-title" />
+    <box class="power-section" vertical spacing={8}>
+      <label label="Power" halign={Gtk.Align.START} class="section-title" />
       <box spacing={8}>
         <icon
-          icon={bind(batteryStatus).as((s) =>
+          icon={batteryStatus.as((s) =>
             s.trim() === "Charging"
               ? "battery-caution-charging-symbolic"
               : "battery-symbolic",
           )}
         />
         <label
-          label={bind(batteryPercent).as((p) => `${p}%`)}
+          label={batteryPercent.as((p) => `${p}%`)}
           halign={Gtk.Align.START}
         />
         <label
-          label={bind(batteryStatus).as((s) => s.trim())}
+          label={batteryStatus.as((s) => s.trim())}
           halign={Gtk.Align.END}
           hexpand
         />
       </box>
       <levelbar
-        className="battery-bar"
+        class="battery-bar"
         maxValue={100}
-        value={bind(batteryPercent).as((p) => parseFloat(p) || 0)}
+        value={batteryPercent.as((p) => parseFloat(p) || 0)}
       />
     </box>
   );
@@ -253,10 +254,10 @@ function SessionActions({ dashboard }: { dashboard: Gtk.Window }) {
   ];
 
   return (
-    <box className="session-actions" homogeneous spacing={8}>
+    <box class="session-actions" homogeneous spacing={8}>
       {actions.map((action) => (
         <button
-          className="session-btn"
+          class="session-btn"
           tooltipText={action.label}
           onClick={() => {
             dashboard.visible = false;
@@ -279,13 +280,12 @@ function Dashboard() {
   return (
     <window
       name="dashboard"
-      className="dashboard-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => {
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => {
         windowRef = self;
         registerPopup("dashboard", self);
       }}
@@ -296,13 +296,23 @@ function Dashboard() {
         }
       }}
     >
-      <box className="dashboard-container" vertical spacing={12}>
-        <ProfileCard />
-        <QuickSettings />
-        <SystemStats />
-        <PowerSection />
-        <SessionActions dashboard={windowRef!} />
-      </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.START} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="dashboard-popup" vertical spacing={12}>
+              <ProfileCard />
+              <QuickSettings />
+              <SystemStats />
+              <PowerSection />
+              <SessionActions dashboard={windowRef!} />
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

@@ -1,5 +1,5 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
-import { bind } from "astal";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
+import { createBinding } from "ags";
 import Network from "gi://AstalNetwork";
 import { registerPopup } from "../lib/popups";
 import { sh } from "../lib/utils";
@@ -13,10 +13,10 @@ function signalIcon(strength: number): string {
 
 function WifiToggle({ wifi }: { wifi: Network.Wifi }) {
   return (
-    <box className="wifi-toggle" spacing={8}>
+    <box class="wifi-toggle" spacing={8}>
       <label label="WiFi" hexpand halign={Gtk.Align.START} />
       <switch
-        active={bind(wifi, "enabled")}
+        active={createBinding(wifi, "enabled")}
         onActivate={({ active }) => {
           wifi.enabled = active;
         }}
@@ -27,18 +27,18 @@ function WifiToggle({ wifi }: { wifi: Network.Wifi }) {
 
 function ConnectedInfo({ wifi }: { wifi: Network.Wifi }) {
   return (
-    <box className="connected-info" spacing={8} visible={bind(wifi, "ssid").as((s) => !!s)}>
+    <box class="connected-info" spacing={8} visible={createBinding(wifi, "ssid").as((s) => !!s)}>
       <label
-        className="signal-icon"
-        label={bind(wifi, "strength").as(signalIcon)}
+        class="signal-icon"
+        label={createBinding(wifi, "strength").as(signalIcon)}
       />
       <label
-        className="connected-ssid"
-        label={bind(wifi, "ssid").as((s) => s ?? "Not connected")}
+        class="connected-ssid"
+        label={createBinding(wifi, "ssid").as((s) => s ?? "Not connected")}
         hexpand
         halign={Gtk.Align.START}
       />
-      <label className="connected-badge" label="Connected" />
+      <label class="connected-badge" label="Connected" />
     </box>
   );
 }
@@ -55,7 +55,7 @@ function AccessPointEntry({
 
   return (
     <button
-      className={`network-entry ${isConnected ? "active" : ""}`}
+      class={`network-entry ${isConnected ? "active" : ""}`}
       onClick={() => {
         if (!isConnected && ssid) {
           sh(`nmcli device wifi connect "${ssid}"`);
@@ -63,9 +63,9 @@ function AccessPointEntry({
       }}
     >
       <box spacing={8}>
-        <label className="signal-icon" label={signalIcon(ap.strength)} />
+        <label class="signal-icon" label={signalIcon(ap.strength)} />
         <label label={ssid || "Hidden Network"} hexpand halign={Gtk.Align.START} />
-        {isConnected && <label className="connected-badge" label="✓" />}
+        {isConnected && <label class="connected-badge" label="✓" />}
       </box>
     </button>
   );
@@ -73,8 +73,8 @@ function AccessPointEntry({
 
 function WifiList({ wifi }: { wifi: Network.Wifi }) {
   return (
-    <box className="network-list" vertical>
-      {bind(wifi, "accessPoints").as((aps) => {
+    <box class="network-list" vertical>
+      {createBinding(wifi, "accessPoints").as((aps) => {
         const currentSsid = wifi.ssid;
         const seen = new Set<string>();
 
@@ -98,11 +98,11 @@ function EthernetStatus({ wired }: { wired: Network.Wired | null }) {
   if (!wired) return <box />;
 
   return (
-    <box className="ethernet-status" spacing={8}>
-      <label className="signal-icon" label="󰈀" />
+    <box class="ethernet-status" spacing={8}>
+      <label class="signal-icon" label="󰈀" />
       <label label="Ethernet" hexpand halign={Gtk.Align.START} />
       <label
-        label={bind(wired, "speed").as((s) => (s > 0 ? `${s} Mbps` : "Disconnected"))}
+        label={createBinding(wired, "speed").as((s) => (s > 0 ? `${s} Mbps` : "Disconnected"))}
       />
     </box>
   );
@@ -116,13 +116,12 @@ function NetworkMenu() {
   return (
     <window
       name="network"
-      className="network-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => registerPopup("network", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("network", self)}
       onKeyPressEvent={(self, event) => {
         const [, keyval] = event.get_keyval();
         if (keyval === Gdk.KEY_Escape) {
@@ -130,22 +129,32 @@ function NetworkMenu() {
         }
       }}
     >
-      <box className="network-container" vertical spacing={4}>
-        {wifi && <WifiToggle wifi={wifi} />}
-        {wifi && <ConnectedInfo wifi={wifi} />}
-        {wifi && (
-          <scrollable
-            className="network-scroll"
-            vexpand
-            hscrollbarPolicy={Gtk.PolicyType.NEVER}
-            vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
-            heightRequest={300}
-          >
-            <WifiList wifi={wifi} />
-          </scrollable>
-        )}
-        <EthernetStatus wired={wired} />
-      </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="network-popup" vertical spacing={4}>
+              {wifi && <WifiToggle wifi={wifi} />}
+              {wifi && <ConnectedInfo wifi={wifi} />}
+              {wifi && (
+                <scrollable
+                  class="network-scroll"
+                  vexpand
+                  hscrollbarPolicy={Gtk.PolicyType.NEVER}
+                  vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+                  heightRequest={300}
+                >
+                  <WifiList wifi={wifi} />
+                </scrollable>
+              )}
+              <EthernetStatus wired={wired} />
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }
