@@ -9,5 +9,6 @@
     ./swaync.nix
     ./starship.nix
     ./wallpaper.nix
+    ./capture.nix
   ];
 }

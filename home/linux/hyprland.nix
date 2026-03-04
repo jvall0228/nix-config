@@ -16,7 +16,6 @@
     swayosd
     networkmanagerapplet
     blueman
-    nautilus
     wl-screenrec
     hyprpicker
   ];
@@ -80,9 +79,8 @@
         "$mod SHIFT, 7, movetoworkspace, 7"
         "$mod SHIFT, 8, movetoworkspace, 8"
         "$mod SHIFT, 9, movetoworkspace, 9"
-        ", Print, exec, sh -c 'grim -g \"$(slurp)\" - | wl-copy'"
-        "$mod, Print, exec, sh -c 'mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png'"
-        "$mod SHIFT, Print, exec, sh -c 'mkdir -p ~/Pictures/Screenshots && grim ~/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png'"
+        "$mod SHIFT, S, exec, sh -c 'rofi -show capture -modi \"capture:capture-menu\"'"
+        "$mod SHIFT, P, exec, hyprpicker -a"
       ];
 
       bindl = [
