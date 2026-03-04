@@ -107,10 +107,6 @@
       "nikitabobko/tap"
     ];
 
-    brews = [
-      # "mas" # Mac App Store CLI — requires full Xcode to build
-    ];
-
     casks = [
       "aerospace"
       "firefox"
@@ -124,9 +120,6 @@
       "raycast"
     ];
 
-    masApps = {
-      # "Tailscale" = 1475387142;
-    };
   };
 
   # ── System packages (Darwin-specific CLI tools) ──

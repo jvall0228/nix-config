@@ -8,9 +8,10 @@ FLAKE_DIR="$(dirname "$SCRIPT_DIR")"
 HOST="${1:-$(hostname -s)}"
 
 if [[ ! "$HOST" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-  echo "Error: Invalid hostname '$HOST'. Expected alphanumeric with hyphens."
+  echo "Error: Invalid hostname '$HOST'" >&2
   exit 1
 fi
 
 echo "Building Darwin configuration for '$HOST'..."
 darwin-rebuild switch --flake "$FLAKE_DIR#$HOST"
+echo "Switch complete."

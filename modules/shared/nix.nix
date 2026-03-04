@@ -7,7 +7,7 @@
     auto-optimise-store = !pkgs.stdenv.isDarwin; # corrupts store on Darwin
     max-jobs = "auto";
     cores = 0;
-    trusted-users = [ "root" user ]; # user needed for darwin-rebuild without sudo
+    trusted-users = [ "root" ] ++ lib.optionals pkgs.stdenv.isDarwin [ user ];
     allowed-users = [ "root" user ];
     substituters = [
       "https://cache.nixos.org"

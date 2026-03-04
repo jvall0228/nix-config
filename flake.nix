@@ -57,6 +57,15 @@
         inherit system;
         config.allowUnfree = true;
       };
+      hmConfig = system: {
+        home-manager = {
+          useGlobalPkgs = true;
+          useUserPackages = true;
+          users.${user} = import ./home/default.nix;
+          extraSpecialArgs = { inherit inputs user system; unstable = unstableFor system; };
+          backupFileExtension = "backup";
+        };
+      };
     in
     {
       # ── NixOS hosts ──────────────────────────────────────────
@@ -84,15 +93,7 @@
           nixos-hardware.nixosModules.common-pc-laptop-ssd
 
           home-manager.nixosModules.home-manager
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              users.${user} = import ./home/default.nix;
-              extraSpecialArgs = { inherit inputs user system; unstable = unstableFor system; };
-              backupFileExtension = "backup";
-            };
-          }
+          (hmConfig system)
         ];
       };
 
@@ -112,15 +113,7 @@
           ./modules/darwin/stylix.nix
 
           home-manager.darwinModules.home-manager
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              users.${user} = import ./home/default.nix;
-              extraSpecialArgs = { inherit inputs user system; unstable = unstableFor system; };
-              backupFileExtension = "backup";
-            };
-          }
+          (hmConfig system)
         ];
       };
 
