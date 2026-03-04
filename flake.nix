@@ -23,7 +23,7 @@
     };
 
     stylix = {
-      url = "github:nix-community/stylix";
+      url = "github:nix-community/stylix/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -56,9 +56,9 @@
     {
       # ── NixOS hosts ──────────────────────────────────────────
       nixosConfigurations.thinkpad = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
-        inherit system;
         specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
+          { nixpkgs.hostPlatform = system; }
           disko.nixosModules.disko
           lanzaboote.nixosModules.lanzaboote
           ./hosts/thinkpad/default.nix
