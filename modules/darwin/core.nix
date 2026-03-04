@@ -1,5 +1,8 @@
 { pkgs, user, ... }:
 {
+  # ── Primary user (required for user-level system.defaults and homebrew) ──
+  system.primaryUser = user;
+
   # ── Nix garbage collection (Darwin-specific launchd interval) ──
   nix.gc = {
     automatic = true;
@@ -65,14 +68,6 @@
 
     loginwindow.GuestEnabled = false;
 
-    # ── Firewall ──
-    alf = {
-      globalstate = 1; # enable firewall
-      stealthenabled = 1; # don't respond to pings
-      allowsignedenabled = 1; # allow signed apps
-      allowdownloadsignedenabled = 0; # block unsigned downloaded apps
-    };
-
     # ── Screen lock ──
     screensaver = {
       askForPassword = true;
@@ -85,6 +80,14 @@
         DSDontWriteUSBStores = true;
       };
     };
+  };
+
+  # ── Firewall (new API replacing system.defaults.alf) ──
+  networking.applicationFirewall = {
+    enable = true;
+    enableStealthMode = true;
+    allowSigned = true;
+    allowSignedApp = false; # block unsigned downloaded apps
   };
 
   # ── Disable startup sound ──
@@ -100,13 +103,16 @@
       cleanup = "uninstall"; # remove unlisted casks, but don't zap data
     };
 
-    taps = [];
+    taps = [
+      "nikitabobko/tap"
+    ];
 
     brews = [
-      "mas" # Mac App Store CLI
+      # "mas" # Mac App Store CLI — requires full Xcode to build
     ];
 
     casks = [
+      "aerospace"
       "firefox"
       "1password"
       "discord"

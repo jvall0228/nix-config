@@ -22,11 +22,7 @@
       };
     };
 
-    # Explicit target opt-ins for Darwin
-    targets = {
-      kitty.enable = true;
-      bat.enable = true;
-      btop.enable = true;
-    };
+    # All targets (kitty, bat, btop) are home-manager level, not system level
+    # They'll be auto-themed via stylix.homeManagerIntegration when autoEnable = true
   };
 }

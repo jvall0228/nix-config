@@ -5,6 +5,7 @@
   networking.computerName = "macbook-pro";
 
   users.users.${user} = {
+    uid = 501; # macOS default first user UID
     home = "/Users/${user}";
     shell = pkgs.zsh;
     description = user;
