@@ -17,12 +17,6 @@
         "keybind" : "e"
       }
       {
-        "label" : "suspend",
-        "action" : "systemctl suspend",
-        "text" : "Suspend",
-        "keybind" : "s"
-      }
-      {
         "label" : "reboot",
         "action" : "systemctl reboot",
         "text" : "Reboot",

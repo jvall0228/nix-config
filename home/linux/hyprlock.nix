@@ -94,7 +94,6 @@
       };
       listener = [
         { timeout = 300; on-timeout = "hyprlock"; }
-        { timeout = 900; on-timeout = "systemctl suspend"; }
       ];
     };
   };

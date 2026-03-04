@@ -59,7 +59,6 @@
           stylix.nixosModules.stylix
 
           nixos-hardware.nixosModules.common-cpu-amd
-          nixos-hardware.nixosModules.common-gpu-nvidia-nonprime
           nixos-hardware.nixosModules.common-pc-laptop
           nixos-hardware.nixosModules.common-pc-laptop-ssd
 
