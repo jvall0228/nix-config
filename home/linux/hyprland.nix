@@ -49,6 +49,7 @@
       bind = [
         "$mod, Return, exec, kitty"
         "$mod, D, exec, rofi -show drun"
+        "$mod, SPACE, exec, walker"
         "$mod, Q, killactive,"
         "$mod, F, fullscreen,"
         "$mod, V, togglefloating,"
