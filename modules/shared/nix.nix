@@ -1,13 +1,13 @@
-{ user, ... }:
+{ user, lib, pkgs, ... }:
 {
   nixpkgs.config.allowUnfree = true;
 
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    auto-optimise-store = true;
+    auto-optimise-store = !pkgs.stdenv.isDarwin; # corrupts store on Darwin
     max-jobs = "auto";
     cores = 0;
-    trusted-users = [ "root" ];
+    trusted-users = [ "root" user ]; # user needed for darwin-rebuild without sudo
     allowed-users = [ "root" user ];
     substituters = [
       "https://cache.nixos.org"
@@ -23,7 +23,9 @@
     ];
   };
 
-  nix.gc = {
+  # NixOS: systemd timer syntax
+  # Darwin gc is configured in modules/darwin/core.nix (launchd interval format)
+  nix.gc = lib.mkIf pkgs.stdenv.isLinux {
     automatic = true;
     dates = "weekly";
     options = "--delete-older-than 30d";

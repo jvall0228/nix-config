@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="https://github.com/jvall0228/nix-config.git"
+REPO_DIR="$HOME/nix-config"
+HOST="${1:-macbook-pro}"
+
+echo "=== nix-config Darwin Bootstrap ==="
+echo "Host: $HOST"
+echo ""
+
+# ── Step 1: Xcode Command Line Tools ──
+if ! xcode-select -p &>/dev/null; then
+  echo "Installing Xcode Command Line Tools..."
+  xcode-select --install
+  echo "Press Enter after CLT installation completes..."
+  read -r
+else
+  echo "Xcode CLT: already installed"
+fi
+
+# ── Step 2: Nix (official installer — multi-user, macOS compatible) ──
+if ! command -v nix &>/dev/null; then
+  echo "Installing Nix (official installer)..."
+  curl --proto '=https' --tlsv1.2 -sSf -L \
+    https://nixos.org/nix/install | sh -s -- --daemon
+  # Source nix in current shell
+  if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+    . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+  fi
+else
+  echo "Nix: already installed"
+fi
+
+# Verify nix is available
+if ! command -v nix &>/dev/null; then
+  echo "Error: Nix not found in PATH after installation."
+  echo "Please open a new terminal and re-run this script."
+  exit 1
+fi
+
+# ── Step 3: Homebrew ──
+if ! command -v brew &>/dev/null; then
+  echo "Installing Homebrew..."
+  /bin/bash -c "$(curl --proto '=https' --tlsv1.2 -fsSL \
+    https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  # Add Homebrew to PATH for current session (Apple Silicon path)
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+else
+  echo "Homebrew: already installed"
+fi
+
+# ── Step 4: Clone repo ──
+if [ ! -d "$REPO_DIR" ]; then
+  echo "Cloning nix-config..."
+  git clone "$REPO_URL" "$REPO_DIR"
+else
+  echo "Repo: already exists at $REPO_DIR"
+fi
+
+# ── Step 5: First activation ──
+echo ""
+echo "Running first nix-darwin activation..."
+echo "This will take 15-25 minutes on first run (downloading all packages)."
+echo ""
+cd "$REPO_DIR"
+nix run nix-darwin/nix-darwin-25.11#darwin-rebuild -- switch --flake ".#$HOST"
+
+echo ""
+echo "=== Bootstrap complete! ==="
+echo "Subsequent rebuilds: bash apps/build-switch-darwin"
+echo "Open a new terminal to get the full environment."

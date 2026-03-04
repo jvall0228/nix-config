@@ -1,4 +1,8 @@
 { user, system, lib, ... }:
+let
+  isLinux = builtins.elem system [ "x86_64-linux" "aarch64-linux" ];
+  isDarwin = builtins.elem system [ "x86_64-darwin" "aarch64-darwin" ];
+in
 {
   imports = [
     ./common/shell.nix
@@ -8,13 +12,15 @@
     ./common/kitty.nix
     ./common/tmux.nix
     ./common/fastfetch.nix
-  ] ++ lib.optionals (builtins.elem system [ "x86_64-linux" "aarch64-linux" ]) [
+  ] ++ lib.optionals isLinux [
     ./linux
+  ] ++ lib.optionals isDarwin [
+    ./darwin
   ];
 
   home = {
     username = user;
-    homeDirectory = "/home/${user}";
+    homeDirectory = if isLinux then "/home/${user}" else "/Users/${user}";
     stateVersion = "25.05";
   };
 

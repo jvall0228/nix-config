@@ -43,9 +43,14 @@
       inputs.astal.follows = "astal";
     };
 
+    nix-darwin = {
+      url = "github:nix-darwin/nix-darwin/nix-darwin-25.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
-  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, stylix, walker, ags, astal, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, home-manager, nixos-hardware, disko, lanzaboote, stylix, walker, ags, astal, nix-darwin, ... }@inputs:
     let
       user = "javels";
       unstableFor = system: import nixpkgs-unstable {
@@ -95,9 +100,35 @@
       checks.x86_64-linux.thinkpad =
         self.nixosConfigurations.thinkpad.config.system.build.toplevel;
 
+      # ── Darwin hosts ────────────────────────────────────────
+      darwinConfigurations.macbook-pro = let system = "aarch64-darwin"; in nix-darwin.lib.darwinSystem {
+        specialArgs = { inherit inputs user; unstable = unstableFor system; };
+        modules = [
+          { nixpkgs.hostPlatform = system; }
+          ./hosts/macbook-pro/default.nix
+          ./modules/shared/nix.nix
+          ./modules/darwin/core.nix
+          stylix.darwinModules.stylix
+          ./modules/darwin/stylix.nix
+
+          home-manager.darwinModules.home-manager
+          {
+            home-manager = {
+              useGlobalPkgs = true;
+              useUserPackages = true;
+              users.${user} = import ./home/default.nix;
+              extraSpecialArgs = { inherit inputs user system; unstable = unstableFor system; };
+              backupFileExtension = "backup";
+            };
+          }
+        ];
+      };
+
+      # ── Checks ─────────────────────────────────────────────
+      checks.aarch64-darwin.macbook-pro =
+        self.darwinConfigurations.macbook-pro.system;
+
       # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power)
-      # TODO: Add darwinConfigurations.macbook (nix-darwin + home-manager.darwinModules)
       # TODO: Add homeConfigurations for standalone home-manager (Arch)
-      # TODO: Add apps.aarch64-darwin with build-switch-darwin
     };
 }
