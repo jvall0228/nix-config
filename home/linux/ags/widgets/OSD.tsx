@@ -1,11 +1,12 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
-import { Variable, timeout } from "astal";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
+import { createState } from "ags";
+import { timeout } from "ags/time";
 import Wp from "gi://AstalWp";
 import { readFile } from "../lib/utils";
 
-const osdVisible = Variable(false);
-const osdValue = Variable(0);
-const osdIcon = Variable("");
+const [osdVisible, setOsdVisible] = createState(false);
+const [osdValue, setOsdValue] = createState(0);
+const [osdIcon, setOsdIcon] = createState("");
 let hideTimeout: any = null;
 
 function getVolumeIcon(speaker: any): string {
@@ -27,20 +28,20 @@ export function showOSD(type: string) {
   if (type === "volume") {
     const speaker = Wp.get_default()?.audio?.defaultSpeaker;
     if (!speaker) return;
-    osdValue.set(Math.round(speaker.volume * 100));
-    osdIcon.set(getVolumeIcon(speaker));
+    setOsdValue(Math.round(speaker.volume * 100));
+    setOsdIcon(getVolumeIcon(speaker));
   } else if (type === "brightness") {
     const pct = getBrightness();
-    osdValue.set(pct);
-    osdIcon.set("\uf185"); //
+    setOsdValue(pct);
+    setOsdIcon("\uf185"); //
   } else if (type === "mic") {
     const mic = Wp.get_default()?.audio?.defaultMicrophone;
     if (!mic) return;
-    osdValue.set(Math.round(mic.volume * 100));
-    osdIcon.set(mic.mute ? "\uf131" : "\uf130"); //  or
+    setOsdValue(Math.round(mic.volume * 100));
+    setOsdIcon(mic.mute ? "\uf131" : "\uf130"); //  or
   }
 
-  osdVisible.set(true);
+  setOsdVisible(true);
 
   if (hideTimeout) {
     hideTimeout.cancel();
@@ -48,7 +49,7 @@ export function showOSD(type: string) {
   }
 
   hideTimeout = timeout(1500, () => {
-    osdVisible.set(false);
+    setOsdVisible(false);
     hideTimeout = null;
   });
 }
@@ -57,31 +58,31 @@ function OSD() {
   return (
     <window
       name="osd"
-      className="osd-popup"
+      class="osd-popup"
       layer={Astal.Layer.OVERLAY}
       anchor={Astal.WindowAnchor.BOTTOM}
       exclusivity={Astal.Exclusivity.IGNORE}
-      visible={osdVisible()}
+      visible={osdVisible}
       keymode={Astal.Keymode.NONE}
     >
-      <box className="osd-container" spacing={12} valign={Gtk.Align.CENTER}>
+      <box class="osd-container" spacing={12} valign={Gtk.Align.CENTER}>
         <label
-          className="osd-icon"
-          label={osdIcon()}
+          class="osd-icon"
+          label={osdIcon}
           widthChars={2}
           halign={Gtk.Align.CENTER}
         />
         <Gtk.LevelBar
-          className="osd-bar"
+          class="osd-bar"
           minValue={0}
           maxValue={100}
-          value={osdValue()}
+          value={osdValue}
           hexpand
           valign={Gtk.Align.CENTER}
         />
         <label
-          className="osd-value"
-          label={osdValue((v) => `${v}%`)}
+          class="osd-value"
+          label={osdValue.as((v) => `${v}%`)}
           widthChars={4}
           xalign={1}
         />

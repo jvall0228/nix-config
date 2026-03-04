@@ -1,5 +1,5 @@
 import GLib from "gi://GLib";
-import { exec, execAsync } from "astal/process";
+import { exec, execAsync } from "ags/process";
 
 export function getFocusedMonitor(): number {
   try {

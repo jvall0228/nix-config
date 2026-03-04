@@ -1,9 +1,10 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
-import { bind, Variable, timeout } from "astal";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
+import { createBinding, createState } from "ags";
+import { timeout } from "ags/time";
 import Notifd from "gi://AstalNotifd";
 import { registerPopup } from "../lib/popups";
 
-export const dndMode = Variable(false);
+const [dndMode, setDndMode] = createState(false);
 
 function timeAgo(unixTime: number): string {
   const seconds = Math.floor(Date.now() / 1000) - unixTime;
@@ -35,10 +36,10 @@ function ActionButtons({ notification: n }: { notification: Notifd.Notification 
   if (!n.actions || n.actions.length === 0) return <box />;
 
   return (
-    <box className="notification-actions" spacing={4}>
+    <box class="notification-actions" spacing={4}>
       {n.actions.map((action) => (
         <button
-          className="notification-action-btn"
+          class="notification-action-btn"
           onClick={() => n.invoke(action.id)}
           hexpand
         >
@@ -60,7 +61,7 @@ function NotificationCard({
 }) {
   return (
     <button
-      className={`notification-card ${urgencyClass(n)}`}
+      class={`notification-card ${urgencyClass(n)}`}
       onClick={() => {
         if (onDismiss) onDismiss();
         n.dismiss();
@@ -72,13 +73,13 @@ function NotificationCard({
           <box vertical hexpand>
             <box spacing={4}>
               <label
-                className="notification-app-name"
+                class="notification-app-name"
                 label={n.appName || "Notification"}
                 halign={Gtk.Align.START}
               />
               {showTime && (
                 <label
-                  className="notification-time"
+                  class="notification-time"
                   label={timeAgo(n.time)}
                   hexpand
                   halign={Gtk.Align.END}
@@ -86,7 +87,7 @@ function NotificationCard({
               )}
             </box>
             <label
-              className="notification-summary"
+              class="notification-summary"
               label={n.summary}
               halign={Gtk.Align.START}
               wrap
@@ -94,7 +95,7 @@ function NotificationCard({
             />
             {n.body && (
               <label
-                className="notification-body"
+                class="notification-body"
                 label={n.body}
                 halign={Gtk.Align.START}
                 wrap
@@ -111,15 +112,15 @@ function NotificationCard({
 
 function NotificationPopups() {
   const notifd = Notifd.get_default();
-  const popupIds = Variable<number[]>([]);
+  const [popupIds, setPopupIds] = createState<number[]>([]);
 
   function addPopup(id: number) {
     const n = notifd.get_notification(id);
     if (!n) return;
 
-    if (dndMode.get()) return;
+    if (dndMode.peek()) return;
 
-    popupIds.set([id, ...popupIds.get()].slice(0, 3));
+    setPopupIds([id, ...popupIds.peek()].slice(0, 3));
 
     if (n.urgency !== Notifd.Urgency.CRITICAL) {
       timeout(5000, () => {
@@ -129,7 +130,7 @@ function NotificationPopups() {
   }
 
   function removePopup(id: number) {
-    popupIds.set(popupIds.get().filter((i) => i !== id));
+    setPopupIds(popupIds.peek().filter((i) => i !== id));
   }
 
   notifd.connect("notified", (_, id) => addPopup(id));
@@ -138,14 +139,14 @@ function NotificationPopups() {
   return (
     <window
       name="notification-popups"
-      className="notification-popup"
+      class="notification-popup"
       layer={Astal.Layer.OVERLAY}
       anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
-      visible={bind(popupIds).as((ids) => ids.length > 0)}
+      visible={popupIds.as((ids) => ids.length > 0)}
     >
-      <box vertical spacing={8} className="notification-popup-list">
-        {bind(popupIds).as((ids) =>
+      <box vertical spacing={8} class="notification-popup-list">
+        {popupIds.as((ids) =>
           ids.map((id) => {
             const n = notifd.get_notification(id);
             if (!n) return <box />;
@@ -168,7 +169,7 @@ function NotificationCenter() {
   return (
     <window
       name="notifications"
-      className="notification-center"
+      class="notification-center"
       layer={Astal.Layer.OVERLAY}
       anchor={
         Astal.WindowAnchor.TOP |
@@ -186,22 +187,22 @@ function NotificationCenter() {
         }
       }}
     >
-      <box className="notification-center-container" vertical spacing={8}>
-        <box className="notification-center-header" spacing={8}>
+      <box class="notification-center-container" vertical spacing={8}>
+        <box class="notification-center-header" spacing={8}>
           <label
             label="Notifications"
-            className="notification-center-title"
+            class="notification-center-title"
             hexpand
             halign={Gtk.Align.START}
           />
           <button
-            className="notification-dnd-toggle"
-            onClick={() => dndMode.set(!dndMode.get())}
+            class="notification-dnd-toggle"
+            onClick={() => setDndMode(!dndMode.peek())}
           >
-            <label label={bind(dndMode).as((d) => d ? "DND On" : "DND Off")} />
+            <label label={dndMode.as((d) => d ? "DND On" : "DND Off")} />
           </button>
           <button
-            className="notification-clear-btn"
+            class="notification-clear-btn"
             onClick={() => {
               notifd.notifications.forEach((n) => n.dismiss());
             }}
@@ -211,17 +212,17 @@ function NotificationCenter() {
         </box>
 
         <scrollable
-          className="notification-center-scroll"
+          class="notification-center-scroll"
           vexpand
           hscrollbarPolicy={Gtk.PolicyType.NEVER}
           vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
         >
           <box vertical spacing={4}>
-            {bind(notifd, "notifications").as((notifications) => {
+            {createBinding(notifd, "notifications").as((notifications) => {
               if (notifications.length === 0) {
                 return (
                   <label
-                    className="notification-empty"
+                    class="notification-empty"
                     label="No notifications"
                     vexpand
                     valign={Gtk.Align.CENTER}

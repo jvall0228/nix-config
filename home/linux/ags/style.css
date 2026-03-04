@@ -1,8 +1,8 @@
-@import "colors.css";
+@import url("colors.css");
 
 /* ── Global ─────────────────────────────────────────── */
 * {
-  font-family: var(--font-sans), sans-serif;
+  font-family: "Noto Sans", sans-serif;
   font-size: 14px;
 }
 
@@ -18,9 +18,9 @@ window {
 .media-popup,
 .dashboard-popup,
 .notification-center {
-  background: var(--base00);
-  border: 1px solid var(--base02);
-  border-radius: var(--border-radius);
+  background: @base00;
+  border: 1px solid @base02;
+  border-radius: 8px;
   padding: 12px;
   margin: 8px;
 }
@@ -31,31 +31,31 @@ window {
 }
 
 .calendar-container button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 4px 12px;
   margin: 2px;
 }
 
 .calendar-container button:hover {
-  background: var(--base02);
+  background: @base02;
 }
 
 calendar {
-  background: var(--base00);
-  color: var(--base05);
-  border-radius: var(--border-radius);
+  background: @base00;
+  color: @base05;
+  border-radius: 8px;
 }
 
 calendar:selected {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
 }
 
 calendar.header {
-  color: var(--base0D);
+  color: @base0D;
 }
 
 /* ── Audio Mixer ────────────────────────────────────── */
@@ -68,18 +68,18 @@ calendar.header {
 }
 
 .volume-slider scale trough {
-  background: var(--base01);
+  background: @base01;
   border-radius: 4px;
   min-height: 8px;
 }
 
 .volume-slider scale highlight {
-  background: var(--base0D);
+  background: @base0D;
   border-radius: 4px;
 }
 
 .volume-slider scale slider {
-  background: var(--base05);
+  background: @base05;
   border-radius: 50%;
   min-width: 16px;
   min-height: 16px;
@@ -87,33 +87,32 @@ calendar.header {
 }
 
 .device-list button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 8px 12px;
   margin: 2px 0;
 }
 
 .device-list button:hover {
-  background: var(--base02);
+  background: @base02;
 }
 
 .device-list button.active {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
 }
 
 /* ── Network ────────────────────────────────────────── */
 .network-popup {
   min-width: 300px;
-  max-height: 500px;
 }
 
 .wifi-toggle {
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .network-list {
@@ -121,20 +120,20 @@ calendar.header {
 }
 
 .network-list button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 8px 12px;
   margin: 2px 0;
 }
 
 .network-list button:hover {
-  background: var(--base02);
+  background: @base02;
 }
 
 .network-list button.active {
-  border-left: 3px solid var(--base0B);
+  border-left: 3px solid @base0B;
 }
 
 /* ── Bluetooth ──────────────────────────────────────── */
@@ -145,24 +144,24 @@ calendar.header {
 .bt-toggle {
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .bluetooth-popup .device-list button.connected {
-  border-left: 3px solid var(--base0B);
+  border-left: 3px solid @base0B;
 }
 
 .scan-btn {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 8px 16px;
   margin-top: 8px;
 }
 
 .scan-btn:hover {
-  background: var(--base0E);
+  background: @base0E;
 }
 
 /* ── Media Player ───────────────────────────────────── */
@@ -173,15 +172,15 @@ calendar.header {
 .album-art {
   min-width: 200px;
   min-height: 200px;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   background-size: cover;
   background-position: center;
   margin-bottom: 12px;
 }
 
 .media-controls button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
   border-radius: 50%;
   min-width: 40px;
@@ -190,29 +189,29 @@ calendar.header {
 }
 
 .media-controls button:hover {
-  background: var(--base02);
+  background: @base02;
 }
 
 .media-controls button.play-pause {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
   min-width: 48px;
   min-height: 48px;
 }
 
 .progress-bar scale trough {
-  background: var(--base01);
+  background: @base01;
   border-radius: 4px;
   min-height: 6px;
 }
 
 .progress-bar scale highlight {
-  background: var(--base0D);
+  background: @base0D;
   border-radius: 4px;
 }
 
 .progress-bar scale slider {
-  background: var(--base05);
+  background: @base05;
   border-radius: 50%;
   min-width: 12px;
   min-height: 12px;
@@ -227,73 +226,73 @@ calendar.header {
 .profile-card {
   padding: 12px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .profile-card .username {
   font-size: 18px;
   font-weight: bold;
-  color: var(--base05);
+  color: @base05;
 }
 
 .profile-card .hostname {
-  color: var(--base03);
+  color: @base03;
   font-size: 12px;
 }
 
 .profile-card .uptime {
-  color: var(--base04);
+  color: @base04;
   font-size: 12px;
 }
 
 .quick-settings {
   padding: 8px 0;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .quick-settings button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 8px 12px;
   margin: 3px;
   min-width: 80px;
 }
 
 .quick-settings button:hover {
-  background: var(--base02);
+  background: @base02;
 }
 
 .quick-settings button.active {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
 }
 
 .system-stats {
   padding: 8px 0;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .system-stats levelbar trough {
   min-height: 8px;
   border-radius: 4px;
-  background: var(--base01);
+  background: @base01;
 }
 
 .system-stats levelbar block.filled {
-  background: var(--base0D);
+  background: @base0D;
   border-radius: 4px;
 }
 
 .system-stats levelbar block.filled.high {
-  background: var(--base09);
+  background: @base09;
 }
 
 .system-stats levelbar block.filled.full {
-  background: var(--base08);
+  background: @base08;
 }
 
 .session-actions {
@@ -301,18 +300,18 @@ calendar.header {
 }
 
 .session-actions button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 10px;
   margin: 3px;
   min-width: 60px;
 }
 
 .session-actions button:hover {
-  background: var(--base08);
-  color: var(--base00);
+  background: @base08;
+  color: @base00;
 }
 
 /* ── Notifications ──────────────────────────────────── */
@@ -321,15 +320,15 @@ calendar.header {
 }
 
 .notification-card {
-  background: var(--base00);
-  border: 1px solid var(--base02);
-  border-radius: var(--border-radius);
+  background: @base00;
+  border: 1px solid @base02;
+  border-radius: 8px;
   padding: 12px;
   margin: 4px 0;
 }
 
 .notification-card.urgency-critical {
-  border-color: var(--base08);
+  border-color: @base08;
 }
 
 .notification-card.urgency-low {
@@ -338,31 +337,31 @@ calendar.header {
 
 .notification-card .summary {
   font-weight: bold;
-  color: var(--base05);
+  color: @base05;
 }
 
 .notification-card .body {
-  color: var(--base04);
+  color: @base04;
   font-size: 13px;
 }
 
 .notification-card .app-name {
-  color: var(--base03);
+  color: @base03;
   font-size: 11px;
 }
 
 .notification-actions button {
-  background: var(--base01);
-  color: var(--base05);
+  background: @base01;
+  color: @base05;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 4px 12px;
   margin: 2px;
 }
 
 .notification-actions button:hover {
-  background: var(--base0D);
-  color: var(--base00);
+  background: @base0D;
+  color: @base00;
 }
 
 .notification-center {
@@ -373,27 +372,27 @@ calendar.header {
 .notification-center .header {
   padding: 8px 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid var(--base02);
+  border-bottom: 1px solid @base02;
 }
 
 .notification-center .clear-all {
-  background: var(--base08);
-  color: var(--base00);
+  background: @base08;
+  color: @base00;
   border: none;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   padding: 4px 12px;
 }
 
 .notification-center .empty {
-  color: var(--base03);
+  color: @base03;
   padding: 40px;
 }
 
 /* ── OSD ────────────────────────────────────────────── */
 .osd-popup {
-  background: var(--base00);
-  border: 1px solid var(--base02);
-  border-radius: var(--border-radius);
+  background: @base00;
+  border: 1px solid @base02;
+  border-radius: 8px;
   padding: 12px 20px;
   margin-bottom: 60px;
   min-width: 300px;
@@ -401,7 +400,7 @@ calendar.header {
 
 .osd-icon {
   font-size: 24px;
-  color: var(--base0D);
+  color: @base0D;
   margin-right: 12px;
 }
 
@@ -409,16 +408,16 @@ calendar.header {
   min-height: 8px;
   min-width: 200px;
   border-radius: 4px;
-  background: var(--base01);
+  background: @base01;
 }
 
 .osd-bar levelbar block.filled {
-  background: var(--base0D);
+  background: @base0D;
   border-radius: 4px;
 }
 
 .osd-value {
-  color: var(--base04);
+  color: @base04;
   font-size: 14px;
   margin-left: 12px;
   min-width: 40px;
@@ -426,18 +425,18 @@ calendar.header {
 
 /* ── Switch styling ─────────────────────────────────── */
 switch {
-  background: var(--base02);
+  background: @base02;
   border-radius: 12px;
   min-width: 40px;
   min-height: 20px;
 }
 
 switch:checked {
-  background: var(--base0D);
+  background: @base0D;
 }
 
 switch slider {
-  background: var(--base05);
+  background: @base05;
   border-radius: 50%;
   min-width: 16px;
   min-height: 16px;
@@ -446,21 +445,20 @@ switch slider {
 
 /* ── Scrollbar ──────────────────────────────────────── */
 scrollbar slider {
-  background: var(--base02);
+  background: @base02;
   border-radius: 4px;
   min-width: 6px;
 }
 
 scrollbar slider:hover {
-  background: var(--base03);
+  background: @base03;
 }
 
 /* ── Section headers ────────────────────────────────── */
 .section-header {
-  color: var(--base03);
+  color: @base03;
   font-size: 11px;
   font-weight: bold;
-  text-transform: uppercase;
   letter-spacing: 1px;
   margin: 8px 0 4px 0;
 }

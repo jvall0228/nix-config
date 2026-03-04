@@ -1,5 +1,5 @@
-import app from "astal/gtk3/app";
-import "./style.css";
+import app from "ags/gtk3/app";
+import GLib from "gi://GLib";
 
 import { togglePopup } from "./lib/popups";
 import Calendar from "./widgets/Calendar";
@@ -11,7 +11,10 @@ import Dashboard from "./widgets/Dashboard";
 import Notifications from "./widgets/Notifications";
 import OSD, { showOSD } from "./widgets/OSD";
 
+const configDir = `${GLib.get_user_config_dir()}/ags`;
+
 app.start({
+  css: `${configDir}/style.css`,
   main() {
     Calendar();
     AudioMixer();

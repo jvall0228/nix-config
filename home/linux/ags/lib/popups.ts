@@ -1,4 +1,4 @@
-import { Gtk } from "astal/gtk3";
+import { Gtk } from "ags/gtk3";
 
 const popups = new Map<string, Gtk.Window>();
 

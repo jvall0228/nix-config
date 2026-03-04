@@ -28,7 +28,7 @@
 
       exec-once = [
         "waybar"
-        "ags run"
+        "ags run -g 3"
         "wallpaper-init"
         "wallpaper-battery-monitor"
         "/run/current-system/sw/bin/polkit-kde-agent-1"

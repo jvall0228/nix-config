@@ -1,4 +1,4 @@
-import { App, Astal, Gtk, Gdk } from "astal/gtk3";
+import { Astal, Gtk, Gdk } from "ags/gtk3";
 import { registerPopup } from "../lib/popups";
 
 function Calendar() {
@@ -11,7 +11,7 @@ function Calendar() {
   return (
     <window
       name="calendar"
-      className="calendar-popup"
+      class="calendar-popup"
       layer={Astal.Layer.OVERLAY}
       anchor={Astal.WindowAnchor.TOP}
       exclusivity={Astal.Exclusivity.IGNORE}
@@ -25,10 +25,10 @@ function Calendar() {
         }
       }}
     >
-      <box className="calendar-container" vertical>
-        <box className="calendar-nav" homogeneous>
+      <box class="calendar-container" vertical>
+        <box class="calendar-nav" homogeneous>
           <button
-            className="calendar-nav-btn"
+            class="calendar-nav-btn"
             onClick={() => {
               const [year, month] = [
                 calendar.year,
@@ -45,7 +45,7 @@ function Calendar() {
             <label label="&#xf053;" />
           </button>
           <button
-            className="calendar-nav-btn"
+            class="calendar-nav-btn"
             onClick={() => {
               const today = new Date();
               calendar.year = today.getFullYear();
@@ -56,7 +56,7 @@ function Calendar() {
             <label label="Today" />
           </button>
           <button
-            className="calendar-nav-btn"
+            class="calendar-nav-btn"
             onClick={() => {
               const [year, month] = [
                 calendar.year,
