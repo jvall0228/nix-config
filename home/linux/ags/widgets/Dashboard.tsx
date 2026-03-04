@@ -280,13 +280,12 @@ function Dashboard() {
   return (
     <window
       name="dashboard"
-      class="dashboard-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => {
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => {
         windowRef = self;
         registerPopup("dashboard", self);
       }}
@@ -297,13 +296,23 @@ function Dashboard() {
         }
       }}
     >
-      <box class="dashboard-container" vertical spacing={12}>
-        <ProfileCard />
-        <QuickSettings />
-        <SystemStats />
-        <PowerSection />
-        <SessionActions dashboard={windowRef!} />
-      </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.START} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="dashboard-popup" vertical spacing={12}>
+              <ProfileCard />
+              <QuickSettings />
+              <SystemStats />
+              <PowerSection />
+              <SessionActions dashboard={windowRef!} />
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

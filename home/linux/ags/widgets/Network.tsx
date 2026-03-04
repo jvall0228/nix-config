@@ -116,13 +116,12 @@ function NetworkMenu() {
   return (
     <window
       name="network"
-      class="network-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => registerPopup("network", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("network", self)}
       onKeyPressEvent={(self, event) => {
         const [, keyval] = event.get_keyval();
         if (keyval === Gdk.KEY_Escape) {
@@ -130,22 +129,32 @@ function NetworkMenu() {
         }
       }}
     >
-      <box class="network-container" vertical spacing={4}>
-        {wifi && <WifiToggle wifi={wifi} />}
-        {wifi && <ConnectedInfo wifi={wifi} />}
-        {wifi && (
-          <scrollable
-            class="network-scroll"
-            vexpand
-            hscrollbarPolicy={Gtk.PolicyType.NEVER}
-            vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
-            heightRequest={300}
-          >
-            <WifiList wifi={wifi} />
-          </scrollable>
-        )}
-        <EthernetStatus wired={wired} />
-      </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="network-popup" vertical spacing={4}>
+              {wifi && <WifiToggle wifi={wifi} />}
+              {wifi && <ConnectedInfo wifi={wifi} />}
+              {wifi && (
+                <scrollable
+                  class="network-scroll"
+                  vexpand
+                  hscrollbarPolicy={Gtk.PolicyType.NEVER}
+                  vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+                  heightRequest={300}
+                >
+                  <WifiList wifi={wifi} />
+                </scrollable>
+              )}
+              <EthernetStatus wired={wired} />
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

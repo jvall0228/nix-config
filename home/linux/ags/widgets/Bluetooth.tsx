@@ -46,13 +46,12 @@ function BluetoothMenu() {
   return (
     <window
       name="bluetooth"
-      class="bluetooth-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => registerPopup("bluetooth", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("bluetooth", self)}
       onKeyPressEvent={(self, event) => {
         const [, keyval] = event.get_keyval();
         if (keyval === Gdk.KEY_Escape) {
@@ -60,38 +59,48 @@ function BluetoothMenu() {
         }
       }}
     >
-      <box class="bluetooth-container" vertical spacing={8}>
-        <box class="bluetooth-header" spacing={8}>
-          <label label="Bluetooth" hexpand halign={Gtk.Align.START} />
-          <switch
-            class="bt-toggle"
-            active={createBinding(bt, "isPowered")}
-            onActivate={({ active }) => {
-              bt.adapter.powered = active;
-            }}
-          />
-        </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="bluetooth-popup" vertical spacing={8}>
+              <box class="bluetooth-header" spacing={8}>
+                <label label="Bluetooth" hexpand halign={Gtk.Align.START} />
+                <switch
+                  class="bt-toggle"
+                  active={createBinding(bt, "isPowered")}
+                  onActivate={({ active }) => {
+                    bt.adapter.powered = active;
+                  }}
+                />
+              </box>
 
-        <box class="device-list" vertical spacing={4}>
-          {createBinding(bt, "devices").as((devices) =>
-            devices
-              .filter((d) => d.paired)
-              .map((device) => <DeviceItem device={device} />),
-          )}
-        </box>
+              <box class="device-list" vertical spacing={4}>
+                {createBinding(bt, "devices").as((devices) =>
+                  devices
+                    .filter((d) => d.paired)
+                    .map((device) => <DeviceItem device={device} />),
+                )}
+              </box>
 
-        <button
-          class="scan-btn"
-          onClick={() => {
-            bt.adapter.start_discovery();
-          }}
-        >
-          <box spacing={8} halign={Gtk.Align.CENTER}>
-            <icon icon="system-search-symbolic" />
-            <label label="Scan" />
-          </box>
-        </button>
-      </box>
+              <button
+                class="scan-btn"
+                onClick={() => {
+                  bt.adapter.start_discovery();
+                }}
+              >
+                <box spacing={8} halign={Gtk.Align.CENTER}>
+                  <icon icon="system-search-symbolic" />
+                  <label label="Scan" />
+                </box>
+              </button>
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

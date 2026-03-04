@@ -169,17 +169,12 @@ function NotificationCenter() {
   return (
     <window
       name="notifications"
-      class="notification-center"
       layer={Astal.Layer.OVERLAY}
-      anchor={
-        Astal.WindowAnchor.TOP |
-        Astal.WindowAnchor.RIGHT |
-        Astal.WindowAnchor.BOTTOM
-      }
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
       exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      setup={(self) => registerPopup("notifications", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("notifications", self)}
       onKeyPressEvent={(self, event) => {
         const [, keyval] = event.get_keyval();
         if (keyval === Gdk.KEY_Escape) {
@@ -187,58 +182,68 @@ function NotificationCenter() {
         }
       }}
     >
-      <box class="notification-center-container" vertical spacing={8}>
-        <box class="notification-center-header" spacing={8}>
-          <label
-            label="Notifications"
-            class="notification-center-title"
-            hexpand
-            halign={Gtk.Align.START}
-          />
-          <button
-            class="notification-dnd-toggle"
-            onClick={() => setDndMode(!dndMode.peek())}
-          >
-            <label label={dndMode.as((d) => d ? "DND On" : "DND Off")} />
-          </button>
-          <button
-            class="notification-clear-btn"
-            onClick={() => {
-              notifd.notifications.forEach((n) => n.dismiss());
-            }}
-          >
-            <label label="Clear All" />
-          </button>
-        </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.FILL}>
+          <eventbox onClick={() => true}>
+            <box class="notification-center" vertical spacing={8}>
+              <box class="notification-center-header" spacing={8}>
+                <label
+                  label="Notifications"
+                  class="notification-center-title"
+                  hexpand
+                  halign={Gtk.Align.START}
+                />
+                <button
+                  class="notification-dnd-toggle"
+                  onClick={() => setDndMode(!dndMode.peek())}
+                >
+                  <label label={dndMode.as((d) => d ? "DND On" : "DND Off")} />
+                </button>
+                <button
+                  class="notification-clear-btn"
+                  onClick={() => {
+                    notifd.notifications.forEach((n) => n.dismiss());
+                  }}
+                >
+                  <label label="Clear All" />
+                </button>
+              </box>
 
-        <scrollable
-          class="notification-center-scroll"
-          vexpand
-          hscrollbarPolicy={Gtk.PolicyType.NEVER}
-          vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
-        >
-          <box vertical spacing={4}>
-            {createBinding(notifd, "notifications").as((notifications) => {
-              if (notifications.length === 0) {
-                return (
-                  <label
-                    class="notification-empty"
-                    label="No notifications"
-                    vexpand
-                    valign={Gtk.Align.CENTER}
-                    halign={Gtk.Align.CENTER}
-                  />
-                );
-              }
-              return [...notifications]
-                .reverse()
-                .map((n) => (
-                  <NotificationCard notification={n} showTime />
-                ));
-            })}
-          </box>
-        </scrollable>
-      </box>
+              <scrollable
+                class="notification-center-scroll"
+                vexpand
+                hscrollbarPolicy={Gtk.PolicyType.NEVER}
+                vscrollbarPolicy={Gtk.PolicyType.AUTOMATIC}
+              >
+                <box vertical spacing={4}>
+                  {createBinding(notifd, "notifications").as((notifications) => {
+                    if (notifications.length === 0) {
+                      return (
+                        <label
+                          class="notification-empty"
+                          label="No notifications"
+                          vexpand
+                          valign={Gtk.Align.CENTER}
+                          halign={Gtk.Align.CENTER}
+                        />
+                      );
+                    }
+                    return [...notifications]
+                      .reverse()
+                      .map((n) => (
+                        <NotificationCard notification={n} showTime />
+                      ));
+                  })}
+                </box>
+              </scrollable>
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }

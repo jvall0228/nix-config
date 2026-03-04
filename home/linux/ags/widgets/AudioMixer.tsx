@@ -244,26 +244,34 @@ function AudioMixer() {
   return (
     <window
       name="audiomixer"
-      class="audiomixer-popup"
       layer={Astal.Layer.OVERLAY}
-      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.RIGHT}
+      anchor={Astal.WindowAnchor.TOP | Astal.WindowAnchor.BOTTOM | Astal.WindowAnchor.LEFT | Astal.WindowAnchor.RIGHT}
+      exclusivity={Astal.Exclusivity.IGNORE}
       visible={false}
-      keymode={Astal.Keymode.ON_DEMAND}
-      margin_top={8}
-      margin_right={8}
-      setup={(self) => registerPopup("audiomixer", self)}
+      keymode={Astal.Keymode.EXCLUSIVE}
+      $={(self) => registerPopup("audiomixer", self)}
       onKeyPressEvent={(self, event) => {
         if (event.get_keyval()[1] === Gdk.KEY_Escape) {
           self.visible = false;
         }
       }}
     >
-      <box class="audiomixer-content" vertical spacing={12}>
-        <MasterSection />
-        <AppStreams />
-        <OutputDevices />
-        <InputSection />
-      </box>
+      <eventbox
+        hexpand
+        vexpand
+        onClick={(self) => { self.get_toplevel().visible = false; }}
+      >
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
+          <eventbox onClick={() => true}>
+            <box class="audiomixer-popup" vertical spacing={12}>
+              <MasterSection />
+              <AppStreams />
+              <OutputDevices />
+              <InputSection />
+            </box>
+          </eventbox>
+        </box>
+      </eventbox>
     </window>
   );
 }
