@@ -260,11 +260,11 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 
 ## Acceptance Criteria
 
-- [ ] `hosts/shellbox/` directory with `default.nix`, `disko.nix`, `hardware-configuration.nix`
-- [ ] `nixosConfigurations.shellbox` in `flake.nix` with headless module subset
-- [ ] `headless` flag in `hmConfig` and `home/default.nix` gating `home/linux/` imports
-- [ ] Flake check passes: `nix flake check --system x86_64-linux`
-- [ ] Existing thinkpad and macbook-pro configs unaffected (backward compatible)
+- [x] `hosts/shellbox/` directory with `default.nix`, `disko.nix`, `hardware-configuration.nix`
+- [x] `nixosConfigurations.shellbox` in `flake.nix` with headless module subset
+- [x] `headless` flag in `hmConfig` and `home/default.nix` gating `home/linux/` imports
+- [x] Flake check passes: `nix flake check --system x86_64-linux`
+- [x] Existing thinkpad and macbook-pro configs unaffected (backward compatible)
 - [ ] DO droplet provisioned and NixOS deployed via nixos-anywhere
 - [ ] SSH access works, system is running, all Phase 4 checks pass
 
