@@ -16,5 +16,6 @@
     unstable.codex
     unstable.gemini-cli
     unstable.opencode
+    doctl
   ];
 }
