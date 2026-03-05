@@ -1,6 +1,9 @@
 { pkgs, user, config, lib, ... }:
 let
-  sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHznnU/MK5vP++fgL197Ghc9RVB9PI8o+qoGnCVUNAgy";
+  sshKeys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHznnU/MK5vP++fgL197Ghc9RVB9PI8o+qoGnCVUNAgy"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEaaVvW4CkusjcsY1X+vwKJ+vUFrhJ3OSTtTHJs9BbbK ShellFish@iPad-20012026"
+  ];
 in
 {
   imports = [
@@ -41,9 +44,9 @@ in
     isNormalUser = true;
     extraGroups = [ "wheel" ];
     shell = pkgs.bash;
-    openssh.authorizedKeys.keys = [ sshKey ];
+    openssh.authorizedKeys.keys = sshKeys;
   };
-  users.users.root.openssh.authorizedKeys.keys = [ sshKey ];
+  users.users.root.openssh.authorizedKeys.keys = sshKeys;
 
   security.sudo.execWheelOnly = true;
   security.sudo.wheelNeedsPassword = false;
