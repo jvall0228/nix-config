@@ -9,7 +9,7 @@ symptoms:
   - "100% ping packet loss to droplet IP"
   - "dhcpcd falls back to IPv4 link-local (169.254.x.x) — no DHCP response"
 root_cause: "DigitalOcean does not provide a DHCP server. Network configuration is static via cloud-init metadata at 169.254.169.254. NixOS defaults (dhcpcd) and the official DO module assume DHCP availability."
-solution: "Custom do-networking.nix module: systemd-networkd with link-local bootstrap + oneshot service fetching IP/gateway/DNS from DO metadata API"
+solution: "cloud-init with DigitalOcean datasource + systemd-networkd (community standard via srvos)"
 technologies:
   - nixos
   - digitalocean
@@ -86,59 +86,49 @@ The official NixOS DO config module (`nixos/modules/virtualisation/digital-ocean
 
 ## Solution
 
-Custom `hosts/shellbox/do-networking.nix` module that:
+Use **cloud-init with the DigitalOcean datasource** — the community-standard approach used by [srvos](https://github.com/numtide/srvos/blob/main/nixos/hardware/digitalocean/droplet.nix) (maintained by the nixos-anywhere author).
 
-1. **Disables DHCP entirely**
+`hosts/shellbox/do-networking.nix`:
 ```nix
-networking.useDHCP = false;
-networking.dhcpcd.enable = false;
-```
+{ modulesPath, lib, ... }:
+{
+  imports = [
+    (modulesPath + "/virtualisation/digital-ocean-config.nix")
+  ];
 
-2. **Uses systemd-networkd with link-local only**
-```nix
-systemd.network.enable = true;
-systemd.network.networks."10-do-public" = {
-  matchConfig.Name = "en* eth*";
-  networkConfig = {
-    LinkLocalAddressing = "ipv4";  # Gets 169.254.x.x — enough to reach metadata API
-    LLDP = false;
-    EmitLLDP = false;
+  networking.useDHCP = lib.mkForce false;
+  networking.useNetworkd = true;
+
+  services.cloud-init = {
+    enable = true;
+    network.enable = true;
+    settings = {
+      datasource_list = [ "DigitalOcean" ];
+      datasource.DigitalOcean = { };
+    };
   };
-};
+}
 ```
 
-3. **Fetches real IP from metadata API at boot**
+The `digital-ocean-config.nix` module provides SSH, serial console (`ttyS0`), GRUB on `/dev/vda`, virtio modules, and DO metadata services (hostname, SSH keys, entropy). cloud-init handles network configuration via the DO metadata API.
+
+Additional overrides in `hosts/shellbox/default.nix`:
 ```nix
-systemd.services.do-configure-network = {
-  after = [ "systemd-networkd.service" ];
-  before = [ "network-online.target" "sshd.service" ];
-  wantedBy = [ "multi-user.target" ];
-  path = with pkgs; [ curl iproute2 jq gawk ];
-  # Script: wait for link-local → fetch metadata → apply static IP
-};
+boot.growPartition = lib.mkForce false;  # disko manages partition layout
+virtualisation.digitalOcean.rebuildFromUserData = false;  # flake manages config
 ```
 
-Key parts of the service script:
-```bash
-# Wait for link-local address
-for attempt in $(seq 1 30); do
-  ip addr show dev "$IFACE" | grep -q "169.254." && break
-  sleep 1
-done
+### Community approaches comparison
 
-# Ensure route to metadata API
-ip route add 169.254.169.254/32 dev "$IFACE" 2>/dev/null || true
+| Approach | Used by | Tradeoff |
+|---|---|---|
+| **cloud-init + systemd-networkd** | srvos, nixos-anywhere maintainer | Adds ~100MB (Python) but handles IPv6, hostname, SSH keys. **Recommended.** |
+| Custom metadata fetch service | Our initial attempt | Lean (no Python) but reinvents cloud-init. 153 lines vs 10. |
+| Static IP at install time | nixos-infect, nixops | Simple but baked-in — breaks on IP change. |
 
-# Fetch and apply
-METADATA=$(curl -sf --retry 5 --retry-delay 2 http://169.254.169.254/metadata/v1.json)
-IP=$(echo "$METADATA" | jq -r '.interfaces.public[0].ipv4.ip_address')
-GATEWAY=$(echo "$METADATA" | jq -r '.interfaces.public[0].ipv4.gateway')
-ip addr flush dev "$IFACE"
-ip addr add "$IP/$CIDR" dev "$IFACE"
-ip route add default via "$GATEWAY" dev "$IFACE"
-```
+### Reference issue
 
-4. **Signals network-online.target** via a separate `do-network-online` service so SSH and other services wait for metadata config to complete.
+[nixos-anywhere-examples #5](https://github.com/nix-community/nixos-anywhere-examples/issues/5) — exact same problem and solution.
 
 ## Prevention
 
