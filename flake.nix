@@ -105,7 +105,6 @@
           ./hosts/shellbox/default.nix
           ./hosts/shellbox/disko.nix
           ./modules/shared/nix.nix
-          ./modules/nixos/core.nix
           ./modules/nixos/agent-context.nix
           home-manager.nixosModules.home-manager
           (hmConfig system { headless = true; })

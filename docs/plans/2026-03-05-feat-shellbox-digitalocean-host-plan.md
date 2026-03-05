@@ -1,7 +1,7 @@
 ---
 title: "feat: Add shellbox Digital Ocean NixOS host"
 type: feat
-status: active
+status: completed
 date: 2026-03-05
 origin: docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md
 ---
@@ -248,15 +248,15 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 
 ### Phase 4: Post-Deploy Verification
 
-- [ ] SSH login works with key auth
-- [ ] `hostname` returns `shellbox`
-- [ ] `systemctl is-system-running` returns `running`
-- [ ] fail2ban is active: `systemctl status fail2ban`
-- [ ] Firewall only allows SSH: `sudo iptables -L -n`
-- [ ] zram swap is active: `swapon --show`
-- [ ] Auto-upgrade timer exists: `systemctl list-timers | grep nixos-upgrade`
-- [ ] Home-manager tools work: `nvim --version`, `tmux -V`, `git --version`
-- [ ] No GUI packages installed: `which hyprland` returns not found
+- [x] SSH login works with key auth
+- [x] `hostname` returns `shellbox`
+- [x] `systemctl is-system-running` returns `running`
+- [x] fail2ban is active: `systemctl status fail2ban`
+- [x] Firewall only allows SSH: `sudo iptables -L -n`
+- [x] zram swap is active: `swapon --show`
+- [x] Auto-upgrade timer exists: `systemctl list-timers | grep nixos-upgrade`
+- [x] Home-manager tools work: `nvim --version`, `tmux -V`, `git --version`
+- [x] No GUI packages installed: `which hyprland` returns not found
 
 ## Acceptance Criteria
 
@@ -265,8 +265,8 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 - [x] `headless` flag in `hmConfig` and `home/default.nix` gating `home/linux/` imports
 - [x] Flake check passes: `nix flake check --system x86_64-linux`
 - [x] Existing thinkpad and macbook-pro configs unaffected (backward compatible)
-- [ ] DO droplet provisioned and NixOS deployed via nixos-anywhere
-- [ ] SSH access works, system is running, all Phase 4 checks pass
+- [x] DO droplet provisioned and NixOS deployed via nixos-anywhere
+- [x] SSH access works, system is running, all Phase 4 checks pass
 
 ## Dependencies & Risks
 
