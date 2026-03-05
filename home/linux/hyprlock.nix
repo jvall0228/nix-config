@@ -21,6 +21,8 @@
       image = [{
         monitor = "";
         path = "~/nix-config/assets/avatar.png";
+        reload_cmd = "pgrep -x claude >/dev/null && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
+        reload_time = 1;
         size = 120;
         rounding = -1;
         border_size = 3;
