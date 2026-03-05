@@ -1,7 +1,7 @@
-{ modulesPath, ... }:
+{ ... }:
+# Minimal — the DO config module (imported via do-networking.nix) provides
+# qemu-guest.nix and virtio modules. This file exists per host convention.
 {
-  imports = [ (modulesPath + "/profiles/qemu-guest.nix") ];
-
-  boot.initrd.availableKernelModules = [ "virtio_pci" "virtio_scsi" "virtio_blk" "virtio_net" "ahci" "sd_mod" ];
-  boot.kernelModules = [ "virtio_pci" "virtio_net" ];
+  # Extra modules not in qemu-guest profile
+  boot.initrd.availableKernelModules = [ "ahci" "sd_mod" ];
 }

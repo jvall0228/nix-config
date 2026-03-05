@@ -9,18 +9,17 @@ in
   ];
   networking.hostName = "shellbox";
 
-  # GRUB bootloader (BIOS + EFI hybrid for DO)
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/vda";
-    efiSupport = true;
-    efiInstallAsRemovable = true;
-  };
+  # GRUB EFI support (DO module sets grub.devices, we add EFI for our disko ESP)
+  boot.loader.grub.efiSupport = true;
+  boot.loader.grub.efiInstallAsRemovable = true;
 
-  # Serial console for DO web console access
-  boot.kernelParams = [ "console=ttyS0" ];
+  # DO module sets boot.growPartition = true — disable since disko manages layout
+  boot.growPartition = lib.mkForce false;
 
-  # Networking configured by do-networking.nix (metadata API)
+  # Don't rebuild from DO user-data — we manage config via flake
+  virtualisation.digitalOcean.rebuildFromUserData = false;
+
+  # Networking configured by do-networking.nix (cloud-init)
   networking.firewall.enable = true;
   networking.firewall.allowedTCPPorts = [ 22 ];
 
