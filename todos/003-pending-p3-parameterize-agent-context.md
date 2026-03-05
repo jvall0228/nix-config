@@ -2,15 +2,15 @@
 status: pending
 priority: p3
 issue_id: "003"
-tags: [agent-context, multi-host, shellbox]
-dependencies: ["shellbox host deployed"]
+tags: [agent-context, multi-host, do-nixbox]
+dependencies: ["do-nixbox host deployed"]
 ---
 
 # Parameterize agent-context.nix for Multi-Host Accuracy
 
 ## Problem Statement
 
-`modules/nixos/agent-context.nix` has a hardcoded `enabledModules` list (lines 8-17) and thinkpad-specific content (Hyprland paths, Lanzaboote generation limit, sbctl references). When used on shellbox, `/etc/agent-context.md` contains misleading information about the system.
+`modules/nixos/agent-context.nix` has a hardcoded `enabledModules` list (lines 8-17) and thinkpad-specific content (Hyprland paths, Lanzaboote generation limit, sbctl references). When used on do-nixbox, `/etc/agent-context.md` contains misleading information about the system.
 
 ## Proposed Solution
 
@@ -22,11 +22,11 @@ Also conditionally include/exclude sections like "Desktop/Hyprland" and "Lanzabo
 
 ## Acceptance Criteria
 
-- [ ] `/etc/agent-context.md` on shellbox accurately reflects its module set
+- [ ] `/etc/agent-context.md` on do-nixbox accurately reflects its module set
 - [ ] `/etc/agent-context.md` on thinkpad is unchanged
 - [ ] No hardcoded host-specific content in `agent-context.nix`
 
 ## Technical Details
 
 - **Affected file:** `modules/nixos/agent-context.nix`
-- **Origin:** Identified during shellbox planning (see `docs/plans/2026-03-05-feat-shellbox-digitalocean-host-plan.md`)
+- **Origin:** Identified during do-nixbox planning (see `docs/plans/2026-03-05-feat-do-nixbox-digitalocean-host-plan.md`)

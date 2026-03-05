@@ -7,7 +7,7 @@ in
     ./hardware-configuration.nix
     ./do-networking.nix
   ];
-  networking.hostName = "shellbox";
+  networking.hostName = "do-nixbox";
 
   # GRUB EFI support (DO module sets grub.devices, we add EFI for our disko ESP)
   boot.loader.grub.efiSupport = true;

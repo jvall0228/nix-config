@@ -1,16 +1,16 @@
 ---
-title: "feat: Add shellbox Digital Ocean NixOS host"
+title: "feat: Add do-nixbox Digital Ocean NixOS host"
 type: feat
 status: completed
 date: 2026-03-05
-origin: docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md
+origin: docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md
 ---
 
-# feat: Add shellbox Digital Ocean NixOS host
+# feat: Add do-nixbox Digital Ocean NixOS host
 
 ## Overview
 
-Add a new headless NixOS host (`shellbox`) to the nix-config flake, targeting a Digital Ocean droplet. Shellbox is a persistent, always-available multi-agent workspace accessed via SSH. Provisioned with `doctl`, deployed with `nixos-anywhere`, managed through the same flake as thinkpad and macbook-pro.
+Add a new headless NixOS host (`do-nixbox`) to the nix-config flake, targeting a Digital Ocean droplet. Do-nixbox is a persistent, always-available multi-agent workspace accessed via SSH. Provisioned with `doctl`, deployed with `nixos-anywhere`, managed through the same flake as thinkpad and macbook-pro.
 
 ## Problem Statement / Motivation
 
@@ -18,12 +18,12 @@ There is no persistent remote workspace for running AI agents (Claude Code, etc.
 
 ## Proposed Solution
 
-1. Create `hosts/shellbox/` with host config, disko layout, and hardware config
-2. Add `nixosConfigurations.shellbox` to `flake.nix` with headless module selection
+1. Create `hosts/do-nixbox/` with host config, disko layout, and hardware config
+2. Add `nixosConfigurations.do-nixbox` to `flake.nix` with headless module selection
 3. Add a `headless` flag to `hmConfig` and `home/default.nix` to skip GUI imports
 4. Provision a DO droplet via `doctl` and deploy NixOS via `nixos-anywhere`
 
-(see brainstorm: docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md)
+(see brainstorm: docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md)
 
 ## Technical Considerations
 
@@ -55,7 +55,7 @@ There is no persistent remote workspace for running AI agents (Claude Code, etc.
 
 ### Phase 1: Nix Configuration (local, no droplet needed)
 
-#### 1.1 Create `hosts/shellbox/disko.nix`
+#### 1.1 Create `hosts/do-nixbox/disko.nix`
 
 Simple GPT layout for DO virtio disk:
 - 1M `EF02` BIOS boot partition (NOT `EF00`)
@@ -64,10 +64,10 @@ Simple GPT layout for DO virtio disk:
 - Device: `lib.mkDefault "/dev/vda"`
 
 ```
-hosts/shellbox/disko.nix
+hosts/do-nixbox/disko.nix
 ```
 
-#### 1.2 Create `hosts/shellbox/hardware-configuration.nix`
+#### 1.2 Create `hosts/do-nixbox/hardware-configuration.nix`
 
 Hand-written (not generated) with known DO virtio modules:
 
@@ -80,14 +80,14 @@ boot.kernelModules = [ "virtio_pci" "virtio_net" ];
 Note: Can be regenerated post-install with `nixos-generate-config` if needed.
 
 ```
-hosts/shellbox/hardware-configuration.nix
+hosts/do-nixbox/hardware-configuration.nix
 ```
 
-#### 1.3 Create `hosts/shellbox/default.nix`
+#### 1.3 Create `hosts/do-nixbox/default.nix`
 
 Host-specific config:
 
-- `networking.hostName = "shellbox"`
+- `networking.hostName = "do-nixbox"`
 - GRUB bootloader config (`boot.loader.grub.device = "/dev/vda"`, `efiSupport = true`, `efiInstallAsRemovable = true`)
 - `boot.kernelParams = [ "console=ttyS0" ]` (override quiet boot from core.nix)
 - SSH server: `services.openssh.enable = true`, `PasswordAuthentication = false`, `PermitRootLogin = "prohibit-password"`, `LogLevel = "VERBOSE"`
@@ -98,7 +98,7 @@ Host-specific config:
 - `system.stateVersion = "25.05"`
 
 ```
-hosts/shellbox/default.nix
+hosts/do-nixbox/default.nix
 ```
 
 #### 1.4 Add `headless` flag to `hmConfig` in `flake.nix`
@@ -114,7 +114,7 @@ hmConfig = system: { headless ? false }: { ... extraSpecialArgs = { inherit inpu
 ```
 
 Existing callers pass `(hmConfig system {})` or `(hmConfig system { headless = false; })`.
-Shellbox passes `(hmConfig system { headless = true; })`.
+Do-nixbox passes `(hmConfig system { headless = true; })`.
 
 ```
 flake.nix (lines ~60-68)
@@ -136,16 +136,16 @@ Add `headless ? false` to the function arguments.
 home/default.nix (lines 1, 15)
 ```
 
-#### 1.6 Add `nixosConfigurations.shellbox` to `flake.nix`
+#### 1.6 Add `nixosConfigurations.do-nixbox` to `flake.nix`
 
 ```nix
-nixosConfigurations.shellbox = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
+nixosConfigurations.do-nixbox = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
   specialArgs = { inherit inputs user; unstable = unstableFor system; };
   modules = [
     { nixpkgs.hostPlatform = system; }
     disko.nixosModules.disko
-    ./hosts/shellbox/default.nix
-    ./hosts/shellbox/disko.nix
+    ./hosts/do-nixbox/default.nix
+    ./hosts/do-nixbox/disko.nix
     ./modules/shared/nix.nix
     ./modules/nixos/core.nix
     ./modules/nixos/agent-context.nix
@@ -161,10 +161,10 @@ No lanzaboote, no nvidia, no hyprland, no power, no stylix, no greetd, no nixos-
 flake.nix (after thinkpad block, ~line 99)
 ```
 
-#### 1.7 Add flake check for shellbox
+#### 1.7 Add flake check for do-nixbox
 
 ```nix
-checks.x86_64-linux.shellbox = nixosConfigurations.shellbox.config.system.build.toplevel;
+checks.x86_64-linux.do-nixbox = nixosConfigurations.do-nixbox.config.system.build.toplevel;
 ```
 
 ```
@@ -174,7 +174,7 @@ flake.nix (checks block)
 #### 1.8 Validate config builds
 
 ```bash
-nix build .#nixosConfigurations.shellbox.config.system.build.toplevel --dry-run
+nix build .#nixosConfigurations.do-nixbox.config.system.build.toplevel --dry-run
 ```
 
 This verifies the config evaluates without errors. No droplet needed.
@@ -190,14 +190,14 @@ doctl auth init  # paste DO API token if not already configured
 #### 2.2 Upload SSH key to DO (if not already)
 
 ```bash
-doctl compute ssh-key import shellbox-key --public-key-file ~/.ssh/id_ed25519.pub
+doctl compute ssh-key import do-nixbox-key --public-key-file ~/.ssh/id_ed25519.pub
 doctl compute ssh-key list  # note the key ID or fingerprint
 ```
 
 #### 2.3 Create the droplet
 
 ```bash
-doctl compute droplet create shellbox \
+doctl compute droplet create do-nixbox \
   --image ubuntu-24-04-x64 \
   --size s-2vcpu-2gb \
   --region nyc1 \
@@ -221,7 +221,7 @@ doctl compute droplet list --format ID,Name,PublicIPv4
 
 ```bash
 nix run github:nix-community/nixos-anywhere -- \
-  --flake ~/nix-config#shellbox \
+  --flake ~/nix-config#do-nixbox \
   --target-host root@<droplet-ip>
 ```
 
@@ -249,7 +249,7 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 ### Phase 4: Post-Deploy Verification
 
 - [x] SSH login works with key auth
-- [x] `hostname` returns `shellbox`
+- [x] `hostname` returns `do-nixbox`
 - [x] `systemctl is-system-running` returns `running`
 - [x] fail2ban is active: `systemctl status fail2ban`
 - [x] Firewall only allows SSH: `sudo iptables -L -n`
@@ -260,8 +260,8 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 
 ## Acceptance Criteria
 
-- [x] `hosts/shellbox/` directory with `default.nix`, `disko.nix`, `hardware-configuration.nix`
-- [x] `nixosConfigurations.shellbox` in `flake.nix` with headless module subset
+- [x] `hosts/do-nixbox/` directory with `default.nix`, `disko.nix`, `hardware-configuration.nix`
+- [x] `nixosConfigurations.do-nixbox` in `flake.nix` with headless module subset
 - [x] `headless` flag in `hmConfig` and `home/default.nix` gating `home/linux/` imports
 - [x] Flake check passes: `nix flake check --system x86_64-linux`
 - [x] Existing thinkpad and macbook-pro configs unaffected (backward compatible)
@@ -278,9 +278,9 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 
 **Risks:**
 - **Boot failure on first deploy:** Wrong disko layout or missing virtio modules. Mitigate by dry-building first and using `console=ttyS0` for DO web console debugging.
-- **Lockout after nixos-anywhere:** SSH keys not in NixOS config. Mitigate by verifying keys are declared in `hosts/shellbox/default.nix` before deploying.
+- **Lockout after nixos-anywhere:** SSH keys not in NixOS config. Mitigate by verifying keys are declared in `hosts/do-nixbox/default.nix` before deploying.
 - **Nix store fills 50 GB disk:** Weekly GC from `nix.nix` mitigates. Monitor with `df -h /nix`.
-- **core.nix changes break shellbox:** mkForce overrides could drift. TODO: refactor core.nix into shared/workstation split.
+- **core.nix changes break do-nixbox:** mkForce overrides could drift. TODO: refactor core.nix into shared/workstation split.
 
 ## Future Work (deferred)
 
@@ -288,7 +288,7 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 - Docker for containerized agent tools/MCP servers (see brainstorm)
 - Refactor `modules/nixos/core.nix` into `core-base.nix` + `core-desktop.nix`
 - Parameterize `modules/nixos/agent-context.nix` for multi-host accuracy
-- `apps/provision-shellbox` script for reproducible provisioning
+- `apps/provision-do-nixbox` script for reproducible provisioning
 - Monitoring/alerting for droplet health
 - Gate `home/common/kitty.nix` behind headless flag (~150 MB unnecessary on server)
 - Auto `nix flake update` before auto-upgrade for security patches
@@ -297,7 +297,7 @@ ssh javels@<droplet-ip> "systemctl is-system-running && cat /etc/agent-context.m
 
 ### Origin
 
-- **Brainstorm document:** [docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md](docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md) — Key decisions carried forward: headless flag approach, module selection, standard security hardening, zram swap, Tailscale/Docker deferred.
+- **Brainstorm document:** [docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md](docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md) — Key decisions carried forward: headless flag approach, module selection, standard security hardening, zram swap, Tailscale/Docker deferred.
 
 ### Internal References
 

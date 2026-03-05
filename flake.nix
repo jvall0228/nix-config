@@ -97,13 +97,13 @@
         ];
       };
 
-      nixosConfigurations.shellbox = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
+      nixosConfigurations.do-nixbox = let system = "x86_64-linux"; in nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
           { nixpkgs.hostPlatform = system; }
           disko.nixosModules.disko
-          ./hosts/shellbox/default.nix
-          ./hosts/shellbox/disko.nix
+          ./hosts/do-nixbox/default.nix
+          ./hosts/do-nixbox/disko.nix
           ./modules/shared/nix.nix
           ./modules/nixos/agent-context.nix
           home-manager.nixosModules.home-manager
@@ -114,8 +114,8 @@
       # ── Checks ─────────────────────────────────────────────
       checks.x86_64-linux.thinkpad =
         self.nixosConfigurations.thinkpad.config.system.build.toplevel;
-      checks.x86_64-linux.shellbox =
-        self.nixosConfigurations.shellbox.config.system.build.toplevel;
+      checks.x86_64-linux.do-nixbox =
+        self.nixosConfigurations.do-nixbox.config.system.build.toplevel;
 
       # ── Darwin hosts ────────────────────────────────────────
       darwinConfigurations.macbook-pro = let system = "aarch64-darwin"; in nix-darwin.lib.darwinSystem {

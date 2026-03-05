@@ -1,7 +1,7 @@
 ---
 title: "DigitalOcean has no DHCP — NixOS requires metadata-based static networking"
 problem_type: integration-issues
-component: hosts/shellbox
+component: hosts/do-nixbox
 severity: critical
 symptoms:
   - "NixOS droplet unreachable after nixos-anywhere deployment"
@@ -88,7 +88,7 @@ The official NixOS DO config module (`nixos/modules/virtualisation/digital-ocean
 
 Use **cloud-init with the DigitalOcean datasource** — the community-standard approach used by [srvos](https://github.com/numtide/srvos/blob/main/nixos/hardware/digitalocean/droplet.nix) (maintained by the nixos-anywhere author).
 
-`hosts/shellbox/do-networking.nix`:
+`hosts/do-nixbox/do-networking.nix`:
 ```nix
 { modulesPath, lib, ... }:
 {
@@ -112,7 +112,7 @@ Use **cloud-init with the DigitalOcean datasource** — the community-standard a
 
 The `digital-ocean-config.nix` module provides SSH, serial console (`ttyS0`), GRUB on `/dev/vda`, virtio modules, and DO metadata services (hostname, SSH keys, entropy). cloud-init handles network configuration via the DO metadata API.
 
-Additional overrides in `hosts/shellbox/default.nix`:
+Additional overrides in `hosts/do-nixbox/default.nix`:
 ```nix
 boot.growPartition = lib.mkForce false;  # disko manages partition layout
 virtualisation.digitalOcean.rebuildFromUserData = false;  # flake manages config
@@ -160,10 +160,10 @@ virtualisation.digitalOcean.rebuildFromUserData = false;  # flake manages config
 ## Related
 
 ### Internal
-- Implementation: `hosts/shellbox/do-networking.nix`
-- Host config: `hosts/shellbox/default.nix`
-- Plan: `docs/plans/2026-03-05-feat-shellbox-digitalocean-host-plan.md`
-- Brainstorm: `docs/brainstorms/2026-03-05-shellbox-droplet-brainstorm.md`
+- Implementation: `hosts/do-nixbox/do-networking.nix`
+- Host config: `hosts/do-nixbox/default.nix`
+- Plan: `docs/plans/2026-03-05-feat-do-nixbox-digitalocean-host-plan.md`
+- Brainstorm: `docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md`
 - TODO — refactor core.nix: `todos/002-pending-p2-refactor-core-nix-shared-workstation.md`
 
 ### External
