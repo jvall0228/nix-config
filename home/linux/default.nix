@@ -3,6 +3,7 @@
   imports = [
     ./desktop.nix
     ./hyprlock.nix
+    ./weather.nix
     ./wlogout.nix
     ./waybar.nix
     ./rofi.nix
