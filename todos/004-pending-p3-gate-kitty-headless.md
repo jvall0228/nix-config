@@ -2,8 +2,8 @@
 status: pending
 priority: p3
 issue_id: "004"
-tags: [home-manager, headless, shellbox, optimization]
-dependencies: ["shellbox host deployed"]
+tags: [home-manager, headless, do-nixbox, optimization]
+dependencies: ["do-nixbox host deployed"]
 ---
 
 # Gate kitty.nix Behind Headless Flag
@@ -18,11 +18,11 @@ In `home/common/default.nix` (or wherever kitty is imported), wrap the kitty imp
 
 ## Acceptance Criteria
 
-- [ ] kitty is not installed on shellbox
+- [ ] kitty is not installed on do-nixbox
 - [ ] kitty is still installed on thinkpad and macbook-pro
-- [ ] fastfetch works on shellbox (graceful fallback if kitty-direct unavailable)
+- [ ] fastfetch works on do-nixbox (graceful fallback if kitty-direct unavailable)
 
 ## Technical Details
 
 - **Affected files:** `home/common/default.nix`, possibly `home/common/fastfetch.nix`
-- **Origin:** Identified during shellbox planning
+- **Origin:** Identified during do-nixbox planning

@@ -1,17 +1,17 @@
-# Brainstorm: Shellbox - Digital Ocean NixOS Agent Workspace
+# Brainstorm: Do-nixbox - Digital Ocean NixOS Agent Workspace
 
 **Date:** 2026-03-05
 **Status:** Draft
 
 ## What We're Building
 
-A persistent Digital Ocean droplet running NixOS, managed as a new host (`shellbox`) in the nix-config repo. It serves as an always-available multi-agent hub -- a headless workspace for running Claude Code, other AI agents, and supporting services over SSH.
+A persistent Digital Ocean droplet running NixOS, managed as a new host (`do-nixbox`) in the nix-config repo. It serves as an always-available multi-agent hub -- a headless workspace for running Claude Code, other AI agents, and supporting services over SSH.
 
 **Target specs:**
 - Digital Ocean droplet, small tier (2-4 GB RAM)
 - NixOS, x86_64-linux, headless (no GUI)
 - Deployed via nixos-anywhere over SSH
-- Hostname: `shellbox`
+- Hostname: `do-nixbox`
 
 ## Why This Approach
 
@@ -24,10 +24,10 @@ A NixOS droplet managed through the existing flake gives us:
 ## Key Decisions
 
 ### 1. Host structure follows existing patterns
-- `hosts/shellbox/default.nix` -- hostname, SSH, security hardening, stateVersion
-- `hosts/shellbox/hardware-configuration.nix` -- generated post-install
-- `hosts/shellbox/disko.nix` -- simple disk layout for DO (no LUKS, no Btrfs subvolumes needed)
-- New `nixosConfigurations.shellbox` block in `flake.nix`
+- `hosts/do-nixbox/default.nix` -- hostname, SSH, security hardening, stateVersion
+- `hosts/do-nixbox/hardware-configuration.nix` -- generated post-install
+- `hosts/do-nixbox/disko.nix` -- simple disk layout for DO (no LUKS, no Btrfs subvolumes needed)
+- New `nixosConfigurations.do-nixbox` block in `flake.nix`
 
 ### 2. Module selection: headless subset
 Include:
@@ -44,7 +44,7 @@ Skip (GUI/laptop-only):
 - Add `headless` variable to `specialArgs` (default `false`)
 - Pass through to home-manager via `extraSpecialArgs`
 - `home/default.nix` gates Linux GUI imports (`home/linux/`) behind `isLinux && !headless`
-- Common modules (shell, git, neovim, tmux, dev-tools) apply to all hosts including shellbox
+- Common modules (shell, git, neovim, tmux, dev-tools) apply to all hosts including do-nixbox
 
 ### 4. Security: standard hardening
 - SSH key-only authentication (no passwords)
@@ -64,7 +64,7 @@ Skip (GUI/laptop-only):
 
 ### 6. Deployment: nixos-anywhere
 - Create DO droplet with any base image (Ubuntu/Debian)
-- Run `nixos-anywhere --flake .#shellbox root@<droplet-ip>` to install NixOS remotely
+- Run `nixos-anywhere --flake .#do-nixbox root@<droplet-ip>` to install NixOS remotely
 - disko handles disk partitioning during install
 - Post-install: push SSH keys, apply config
 
@@ -77,7 +77,7 @@ Skip (GUI/laptop-only):
 ## Scope Boundaries
 
 **In scope:**
-- New host directory (`hosts/shellbox/`) and flake config
+- New host directory (`hosts/do-nixbox/`) and flake config
 - Headless flag mechanism in home-manager
 - Basic disko config for DO
 - Security hardening (SSH, firewall, fail2ban)
