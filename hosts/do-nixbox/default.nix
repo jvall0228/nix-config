@@ -12,13 +12,6 @@ in
   ];
   networking.hostName = "do-nixbox";
 
-  # GRUB EFI support (DO module sets grub.devices, we add EFI for our disko ESP)
-  boot.loader.grub.efiSupport = true;
-  boot.loader.grub.efiInstallAsRemovable = true;
-
-  # DO module sets boot.growPartition = true — disable since disko manages layout
-  boot.growPartition = lib.mkForce false;
-
   # Don't rebuild from DO user-data — we manage config via flake
   virtualisation.digitalOcean.rebuildFromUserData = false;
 

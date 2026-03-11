@@ -101,9 +101,7 @@
         specialArgs = { inherit inputs user; unstable = unstableFor system; };
         modules = [
           { nixpkgs.hostPlatform = system; }
-          disko.nixosModules.disko
           ./hosts/do-nixbox/default.nix
-          ./hosts/do-nixbox/disko.nix
           ./modules/shared/nix.nix
           ./modules/nixos/agent-context.nix
           home-manager.nixosModules.home-manager
@@ -136,6 +134,12 @@
       # ── Checks ─────────────────────────────────────────────
       checks.aarch64-darwin.macbook-pro =
         self.darwinConfigurations.macbook-pro.system;
+
+      # ── Packages ───────────────────────────────────────────
+      packages.x86_64-linux.do-nixbox-image =
+        (self.nixosConfigurations.do-nixbox.extendModules {
+          modules = [ ./hosts/do-nixbox/image.nix ];
+        }).config.system.build.digitalOceanImage;
 
       # TODO: Add nixosConfigurations.proxmox-vm (skip nvidia/hyprland/power, use headless hmConfig)
       # TODO: Add homeConfigurations for standalone home-manager (Arch)
