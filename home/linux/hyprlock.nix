@@ -199,7 +199,10 @@ with open(transcript) as f:
                 if block.get("type") == "text":
                     t = block.get("text", "").strip()
                     if t:
-                        last = t
+                        # Strip XML/system tags from assistant text too
+                        t = re.sub(r"<[^>]+>", "", t).strip()
+                        if t:
+                            last = t
 # Write user message
 user_path = os.path.join(d, "clawd-jrpg-user")
 if last_user:
