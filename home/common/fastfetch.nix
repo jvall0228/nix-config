@@ -1,14 +1,20 @@
-{ pkgs, ... }:
+{ pkgs, headless ? false, ... }:
 {
   home.packages = [ pkgs.fastfetch ];
 
   xdg.configFile."fastfetch/config.jsonc".text = builtins.toJSON {
-    logo = {
-      type = "kitty-direct";
-      source = ../../assets/avatar.png;
-      width = 18;
-      padding = { top = 1; };
-    };
+    # kitty-direct renders an inline image via the kitty graphics protocol,
+    # which is unavailable over SSH — fall back to the built-in distro logo
+    # on headless hosts.
+    logo =
+      if headless then {
+        type = "builtin";
+      } else {
+        type = "kitty-direct";
+        source = ../../assets/avatar.png;
+        width = 18;
+        padding = { top = 1; };
+      };
     modules = [
       "title"
       "separator"

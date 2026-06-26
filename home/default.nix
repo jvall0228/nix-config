@@ -9,9 +9,11 @@ in
     ./common/git.nix
     ./common/neovim.nix
     ./common/dev-tools.nix
-    ./common/kitty.nix
     ./common/tmux.nix
     ./common/fastfetch.nix
+  ] ++ lib.optionals (!headless) [
+    # kitty is a GUI terminal (~150 MB closure) — useless on headless hosts.
+    ./common/kitty.nix
   ] ++ lib.optionals (isLinux && !headless) [
     ./linux
   ] ++ lib.optionals isDarwin [
