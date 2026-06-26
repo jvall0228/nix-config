@@ -129,6 +129,25 @@ let
     fi
   '';
 
+  # Avatar frame selector. While an agent runs, show the CURRENT session's agent its OWN
+  # animated mascot: the agent name is field 1 of clawd-jrpg-head (written ~1x/s by
+  # clawd-jrpg-text and updated by the cycle keybind), lowercased, mapped to that agent's
+  # 4-frame sprite set. claude / unknown / empty fall back to the original Clawd frames;
+  # when idle, the static portrait. The frame index cycles ~1fps off the wall clock,
+  # matching the avatar's reload_time = 1. New agents need a case here + assets/mascots/.
+  clawd-avatar-frame = pkgs.writeShellScript "clawd-avatar-frame" ''
+    ${clawd-pgrep-check} || { echo ~/nix-config/assets/avatar.png; exit 0; }
+    D="$XDG_RUNTIME_DIR"
+    AGENT=$(cut -f1 "$D/clawd-jrpg-head" 2>/dev/null | tr 'A-Z' 'a-z')
+    F=$(($(date +%s) % 4))
+    case "$AGENT" in
+      codex)    echo ~/nix-config/assets/mascots/codex-frame-$F.png ;;
+      gemini)   echo ~/nix-config/assets/mascots/gemini-frame-$F.png ;;
+      opencode) echo ~/nix-config/assets/mascots/opencode-frame-$F.png ;;
+      *)        echo ~/nix-config/assets/clawd-frame-$F.png ;;
+    esac
+  '';
+
   # Header script: "<Speaker> : Verb..."  (+ working dir and [n/total] when cycling)
   clawd-jrpg-header = pkgs.writeShellScript "clawd-jrpg-header" ''
     ${clawd-pgrep-check} || exit 0
@@ -409,11 +428,14 @@ in
       }];
 
       image = [
-        # Avatar (animated clawd frames whenever ANY agent runs, static otherwise).
+        # Avatar: each running agent shows its OWN animated mascot (Clawd for claude, a
+        # teal blob for codex, a sparkle-star for gemini, an amber bot for opencode); the
+        # current session's agent drives it and it switches as you cycle sessions. Static
+        # portrait when idle. See clawd-avatar-frame for the agent→sprite mapping.
         {
           monitor = "";
           path = "~/nix-config/assets/avatar.png";
-          reload_cmd = "${clawd-pgrep-check} && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
+          reload_cmd = "${clawd-avatar-frame}";
           reload_time = 1;
           size = 300;
           rounding = -1;
