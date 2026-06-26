@@ -32,7 +32,7 @@ in {
         cp ${colorsCss} $out/colors.css
       '';
     };
-    extraPackages = with inputs.astal.packages.${pkgs.system}; [
+    extraPackages = with inputs.astal.packages.${pkgs.stdenv.hostPlatform.system}; [
       battery
       network
       bluetooth
