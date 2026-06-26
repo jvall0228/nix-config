@@ -48,6 +48,12 @@ detection or transcript parsing.
   "host":      "thinkpad",
   "any":       true,                      // is any agent running?
   "active":    "claude",                  // first running agent, or null
+  "hyprlock": {                           // top-level lock-screen payload (omitted
+    "speaker":  "Codex",                  //   when nothing runs). The ONE agent the
+    "running":  ["Codex", "Claude"],      //   JRPG box "speaks" as — the most
+    "user":     "truncated ≤49 chars",    //   recently active agent — plus a roster
+    "lines":    ["width-55 wrapped", "…"] //   of every running agent (speaker first).
+  },
   "agents": {
     "claude": {
       "running": true,
@@ -56,7 +62,7 @@ detection or transcript parsing.
       "lastUser":      "…",               // latest human prompt (cleaned)
       "lastAssistant": "…",               // latest assistant text (cleaned)
       "transcript":    "/home/.../<uuid>.jsonl",
-      "hyprlock": {                        // claude only — lock-screen payload
+      "hyprlock": {                        // per-agent lock-screen payload (ALL agents)
         "user":  "truncated ≤49 chars",
         "lines": ["width-55 wrapped", "…"]
       }
@@ -69,9 +75,17 @@ detection or transcript parsing.
 ```
 
 Message fields are present only for **running** agents (parsing is gated on the
-process existing). `hyprlock` is claude-only and reproduces the original
-lock-screen parse byte-for-byte (XML-tag stripping, markdown filtering, 600-char
-cap, `textwrap.wrap(width=55)`).
+process existing). Every running agent now carries a `hyprlock` payload — the
+JRPG-dialogue filtering (XML-tag stripping, markdown filtering, 600-char cap,
+`textwrap.wrap(width=55)`) lives in `_hyprlock_payload()` and is applied
+uniformly, reproducing the original claude-only parse byte-for-byte.
+
+The **top-level `hyprlock`** is what the lock screen reads. Its `speaker` is the
+most-recently-active running agent (by transcript mtime; opencode falls back to
+its db mtime) and drives the box header + typewriter; `running` lists every
+running agent (speaker first) so the lock screen reflects parallel sessions
+across harnesses. It is **absent** when no agent runs — that absence is the
+signal hyprlock uses to hide the box (see `.any`).
 
 ## Consuming the status
 
@@ -124,7 +138,10 @@ Parsers are **mtime-cached** — a running-but-idle agent costs ~nothing per tic
    register it in `PARSERS`. Wrap risky parsing in try/except — the loop must
    never die.
 3. Add the name to the agent loop in `build()` and the CLI's allowed-args list.
-4. The waybar/CLI pick it up automatically (they iterate `.agents`).
+4. The waybar/CLI pick it up automatically (they iterate `.agents`). The lock
+   screen does too: `build()` attaches a `hyprlock` payload to every running agent
+   and `lockscreen()` considers all of them when choosing the speaker/roster — no
+   hyprlock changes needed for a new agent to appear in the box.
 
 ## Design decisions
 
@@ -139,6 +156,16 @@ Parsers are **mtime-cached** — a running-but-idle agent costs ~nothing per tic
   (`clawd-jrpg-ts`, reset only when displayed text changes) lives in
   `hyprlock.nix`, *not* the daemon — so the animation still types "fresh on lock"
   even though the daemon parses continuously while unlocked.
+- **One speaker + a roster, not stacked boxes.** The JRPG box shows the single
+  most-recently-active agent (the daemon's top-level `hyprlock.speaker`) and lists
+  the others as a header roster, rather than rendering a box per agent. Keeps the
+  single-dialogue aesthetic while making parallel sessions visible.
+- **The box is an `image`, not a `shape`, so it can hide.** hyprlock `shape`s are
+  always drawn (an empty bordered box would linger when idle); an `image` can swap
+  its source via `reload_cmd`. The box chrome is pre-rendered to PNGs at build time
+  (`boxAssets`, ImageMagick) and `reload_cmd` echoes a transparent PNG when `.any`
+  is false. Images render in the image category, *under* labels, so the dialogue
+  text still draws on top (verified via hyprlock's `zindex`/category order).
 - **Resource-capped & fail-soft.** `CPUQuota=5%`, `MemoryMax=64M`, `Nice=10`,
   `IOSchedulingClass=idle`, `OOMScoreAdjust=500`; every parser and the loop body
   swallow exceptions and retry next tick.

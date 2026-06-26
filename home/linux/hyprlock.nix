@@ -45,6 +45,35 @@ let
     capslock   = "rgb(224, 175, 104)";
   };
 
+  # JRPG box chrome, pre-rendered to PNGs so the box can be HIDDEN when idle.
+  # hyprlock `shape`s are static (always drawn, so an empty bordered box lingers when
+  # no agent runs); an `image`, by contrast, can swap its source via reload_cmd. We
+  # render at 2x (1800x420 / 1800x80) for crispness on this HiDPI panel — the image
+  # widget's `size` scales each back to the 900x210 / 900x40 logical footprint the old
+  # shapes used (size = the logical HEIGHT, since hyprlock keeps aspect ratio). Colours
+  # come straight from Stylix (translucent base00 fill, base02 border + separator).
+  boxAssets = pkgs.runCommand "clawd-jrpg-boxes"
+    { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
+    mkdir -p "$out"
+    # Main dialogue box: rounded rect (r=24 = the old rounding 12 at 2x), 4px border,
+    # with the inner separator baked in at y=140 (70 logical px below the top edge).
+    magick -size 1800x420 xc:none \
+      -fill '${rgb.bg80}' -stroke '${colors.selection}' -strokewidth 4 \
+      -draw 'roundrectangle 2,2 1797,417 24,24' \
+      -stroke '${colors.selection}' -strokewidth 2 \
+      -draw 'line 40,140 1760,140' \
+      "$out/mainbox.png"
+    # User-message box (sits above the main box).
+    magick -size 1800x80 xc:none \
+      -fill '${rgb.bg80}' -stroke '${colors.selection}' -strokewidth 4 \
+      -draw 'roundrectangle 2,2 1797,77 24,24' \
+      "$out/userbox.png"
+    # Fully-transparent source shown when no agent is running (box hidden). reload_cmd
+    # must always echo a path — an empty echo would keep the previous image — so the
+    # idle state points here instead of emitting nothing.
+    magick -size 8x8 xc:none "$out/transparent.png"
+  '';
+
   # Interface files (in $XDG_RUNTIME_DIR):
   #   clawd-jrpg-text    — word-wrapped dialogue lines (newline-separated)
   #   clawd-jrpg-user    — user's last message (single line, max 49 chars)
@@ -63,18 +92,25 @@ let
     fi
     # Prefer the agent-status daemon's published state; fall back to a direct
     # pgrep if its file is missing or stale (>5s) so the lock screen still works
-    # when the daemon is down. (NixOS wraps the binary, so the comm is
-    # ".claude-wrapped", not "claude" — match both.)
+    # when the daemon is down. Gate on `.any` so the box shows for ANY running
+    # agent (claude/codex/gemini/opencode), not just claude. (NixOS wraps the
+    # binaries, so the comms are ".claude-wrapped", ".codex-wrapped",
+    # ".opencode-wrapp" (15-char truncation); gemini is a node process running
+    # gemini.js — match all of them in the fallback.)
     STATUS="$D/agent-status.json"
     MT=$(stat -c %Y "$STATUS" 2>/dev/null || echo 0)
     if [ $(($EPOCHSECONDS - MT)) -le 5 ]; then
-      if ${pkgs.jq}/bin/jq -e '.agents.claude.running == true' "$STATUS" >/dev/null 2>&1; then
+      if ${pkgs.jq}/bin/jq -e '.any == true' "$STATUS" >/dev/null 2>&1; then
         printf '%s' "$EPOCHSECONDS" > "$CACHE"; exit 0
       else
         rm -f "$CACHE"; exit 1
       fi
     fi
-    if pgrep -x claude >/dev/null 2>&1 || pgrep -x .claude-wrapped >/dev/null 2>&1; then
+    if pgrep -x .claude-wrapped >/dev/null 2>&1 \
+       || pgrep -x .codex-wrapped >/dev/null 2>&1 \
+       || pgrep -x .opencode-wrapp >/dev/null 2>&1 \
+       || pgrep -x claude >/dev/null 2>&1 \
+       || pgrep -f 'gemini\.js' >/dev/null 2>&1; then
       printf '%s' "$EPOCHSECONDS" > "$CACHE"
       exit 0
     else
@@ -83,9 +119,18 @@ let
     fi
   '';
 
-  # Header script: "Claude : Verb..."
+  # Header script: "<Speaker> : Verb..."  (+ roster of other running agents)
   clawd-jrpg-header = pkgs.writeShellScript "clawd-jrpg-header" ''
     ${clawd-pgrep-check} || exit 0
+
+    # The "speaker" is the most-recently-active agent (daemon-chosen); the roster is
+    # every OTHER running agent, so parallel sessions across harnesses are visible.
+    STATUS="$XDG_RUNTIME_DIR/agent-status.json"
+    SPEAKER=$(${pkgs.jq}/bin/jq -r '.hyprlock.speaker // "Claude"' "$STATUS" 2>/dev/null)
+    [ -z "$SPEAKER" ] && SPEAKER="Claude"
+    OTHERS=$(${pkgs.jq}/bin/jq -r '(.hyprlock.running // []) | .[1:] | join("  ·  ")' "$STATUS" 2>/dev/null)
+    ROSTER=""
+    [ -n "$OTHERS" ] && ROSTER="    <span foreground=\"${colors.comment}\">+  ''${OTHERS}</span>"
 
     VERBS=(
       Accomplishing Architecting Baking Bloviating Bootstrapping Brewing
@@ -117,7 +162,7 @@ let
     if [ $CHARS -lt $VLEN ]; then
       BLINK=$(( (NOW_NS / 500000000) % 2 ))
       [ $BLINK -eq 0 ] && CURSOR="<span foreground=\"${colors.cyan}\">█</span>" || CURSOR=" "
-      echo "          <span foreground=\"${colors.purple}\">Claude</span>  <span foreground=\"${colors.selection}\">:</span>  <span foreground=\"${colors.cyan}\">''${VISIBLE}</span>''${CURSOR}          "
+      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  <span foreground=\"${colors.selection}\">:</span>  <span foreground=\"${colors.cyan}\">''${VISIBLE}</span>''${CURSOR}''${ROSTER}          "
     else
       # Gradient shimmer: wave of color across verb characters
       COLORS=("${colors.comment}" "${colors.blue}" "${colors.cyan}" "${colors.lightCyan}" "${colors.cyan}" "${colors.blue}" "${colors.comment}")
@@ -129,7 +174,7 @@ let
         color_idx=$(( (ch + PHASE) % 7 ))
         SHIMMER="''${SHIMMER}<span foreground=\"''${COLORS[$color_idx]}\">''${FULL:$ch:1}</span>"
       done
-      echo "          <span foreground=\"${colors.purple}\">Claude</span>  <span foreground=\"${colors.selection}\">:</span>  ''${SHIMMER}          "
+      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  <span foreground=\"${colors.selection}\">:</span>  ''${SHIMMER}''${ROSTER}          "
     fi
   '';
 
@@ -175,8 +220,11 @@ let
     CACHE_MTIME=$(stat -c %Y "$D/clawd-jrpg-text" 2>/dev/null || echo 0)
     if [ $((NOW_S - CACHE_MTIME)) -ge 1 ]; then
       STATUS="$D/agent-status.json"
-      MSG=$(${pkgs.jq}/bin/jq -r '.agents.claude.hyprlock.lines // [] | join("\n")' "$STATUS" 2>/dev/null)
-      USR=$(${pkgs.jq}/bin/jq -r '.agents.claude.hyprlock.user // empty' "$STATUS" 2>/dev/null)
+      # Top-level .hyprlock is the daemon-chosen speaker (most-recently-active agent),
+      # so the typewriter follows whichever agent — claude/codex/gemini/opencode — is
+      # currently producing output, not claude alone.
+      MSG=$(${pkgs.jq}/bin/jq -r '.hyprlock.lines // [] | join("\n")' "$STATUS" 2>/dev/null)
+      USR=$(${pkgs.jq}/bin/jq -r '.hyprlock.user // empty' "$STATUS" 2>/dev/null)
       if [ -n "$USR" ]; then
         OLD_U=$(cat "$D/clawd-jrpg-user" 2>/dev/null)
         [ "$USR" != "$OLD_U" ] && printf '%s' "$USR" > "$D/clawd-jrpg-user"
@@ -316,58 +364,52 @@ in
         brightness = 0.7;
       }];
 
-      image = [{
-        monitor = "";
-        path = "~/nix-config/assets/avatar.png";
-        reload_cmd = "(pgrep -x claude || pgrep -x .claude-wrapped) >/dev/null && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
-        reload_time = 1;
-        size = 300;
-        rounding = -1;
-        border_size = 5;
-        border_color = rgb.blue;
-        position = "0, -720";
-        halign = "center";
-        valign = "top";
-        shadow_passes = 1;
-      }];
-
-      # JRPG text box (always visible — subtle when empty)
-      shape = [
-        # User message box (above JRPG box)
+      image = [
+        # Avatar (animated clawd frames whenever ANY agent runs, static otherwise).
         {
           monitor = "";
-          size = "900, 40";
-          color = rgb.bg80;
-          rounding = 12;
-          border_size = 2;
-          border_color = rgb.selection;
+          path = "~/nix-config/assets/avatar.png";
+          reload_cmd = "${clawd-pgrep-check} && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
+          reload_time = 1;
+          size = 300;
+          rounding = -1;
+          border_size = 5;
+          border_color = rgb.blue;
+          position = "0, -720";
+          halign = "center";
+          valign = "top";
+          shadow_passes = 1;
+        }
+        # JRPG boxes as images (NOT shapes) so they HIDE when no agent is running:
+        # reload_cmd swaps to a transparent PNG while idle. They render in the image
+        # category, which draws under the label category — so the dialogue text still
+        # sits on top. `size` = logical height; width follows by aspect (900x40 /
+        # 900x210), matching the old shapes' footprint and position exactly.
+        {
+          monitor = "";
+          path = "${boxAssets}/transparent.png";
+          reload_cmd = "${clawd-pgrep-check} && echo ${boxAssets}/userbox.png || echo ${boxAssets}/transparent.png";
+          reload_time = 1;
+          size = 40;
+          rounding = 0;
+          border_size = 0;
           position = "0, -20";
           halign = "center";
           valign = "center";
-          shadow_passes = 1;
+          shadow_passes = 0;
         }
         {
           monitor = "";
-          size = "900, 210";
-          color = rgb.bg80;
-          rounding = 12;
-          border_size = 2;
-          border_color = rgb.selection;
+          path = "${boxAssets}/transparent.png";
+          reload_cmd = "${clawd-pgrep-check} && echo ${boxAssets}/mainbox.png || echo ${boxAssets}/transparent.png";
+          reload_time = 1;
+          size = 210;
+          rounding = 0;
+          border_size = 0;
           position = "0, -150";
           halign = "center";
           valign = "center";
-          shadow_passes = 1;
-        }
-        # Separator line inside box
-        {
-          monitor = "";
-          size = "860, 1";
-          color = rgb.selection;
-          rounding = 0;
-          border_size = 0;
-          position = "0, -115";
-          halign = "center";
-          valign = "center";
+          shadow_passes = 0;
         }
       ];
 

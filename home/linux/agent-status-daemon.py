@@ -34,6 +34,10 @@ RUNTIME = os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid())
 OUT = os.path.join(RUNTIME, "agent-status.json")
 HOSTNAME = socket.gethostname()
 
+# Human-facing names for the lock-screen "speaker" line, per agent.
+DISPLAY = {"claude": "Claude", "codex": "Codex", "gemini": "Gemini", "opencode": "Opencode"}
+OPENCODE_DB = os.path.join(HOME, ".local", "share", "opencode", "opencode.db")
+
 # ---------------------------------------------------------------------------
 # Process detection — scan /proc directly (no pgrep fork per tick).
 # ---------------------------------------------------------------------------
@@ -180,6 +184,39 @@ def _cached(name, src, compute):
     return val
 
 
+def _hyprlock_payload(last_user, last_assistant):
+    """Build the lock screen's typewriter-ready payload (a short user line + the
+    assistant reply word-wrapped to width 55) from an agent's latest messages.
+
+    This is the JRPG-dialogue filtering that used to live inside the claude-only
+    lock-screen script, lifted out verbatim so EVERY agent gets the same payload —
+    that's what lets hyprlock show codex/gemini/opencode in the box, not just claude.
+    Returns {} when there's nothing displayable."""
+    hl = {}
+    if last_user:
+        u = last_user.replace("\n", " ").strip()
+        if len(u) > 49:
+            u = u[:46] + "..."
+        hl["user"] = u
+    if last_assistant:
+        parts = []
+        total = 0
+        for l in last_assistant.split("\n"):
+            l = l.strip()
+            if not l or l[0] in "#|" or l.startswith("```") or (l[0] == "-" and not l.startswith("- **")):
+                continue
+            if l.startswith("- **"):
+                l = l.lstrip("- ").replace("**", "")
+            parts.append(l)
+            total += len(l) + 1
+            if total >= 600:
+                break
+        if parts:
+            text = " ".join(parts)
+            hl["lines"] = textwrap.wrap(text, width=55, break_long_words=True, break_on_hyphens=True)
+    return hl
+
+
 def _claude_session(cwd):
     """Resolve the transcript for the claude session running in `cwd` (its project
     slug = cwd with '/' and '.' -> '-'), so parallel sessions in different projects
@@ -244,32 +281,6 @@ def _claude_parse(transcript):
         out["lastUser"] = last_user
     if last:
         out["lastAssistant"] = last
-
-    # hyprlock-shaped payload — identical algorithm to the original script.
-    hl = {}
-    if last_user:
-        u = last_user.replace("\n", " ").strip()
-        if len(u) > 49:
-            u = u[:46] + "..."
-        hl["user"] = u
-    if last:
-        parts = []
-        total = 0
-        for l in last.split("\n"):
-            l = l.strip()
-            if not l or l[0] in "#|" or l.startswith("```") or (l[0] == "-" and not l.startswith("- **")):
-                continue
-            if l.startswith("- **"):
-                l = l.lstrip("- ").replace("**", "")
-            parts.append(l)
-            total += len(l) + 1
-            if total >= 600:
-                break
-        if parts:
-            text = " ".join(parts)
-            hl["lines"] = textwrap.wrap(text, width=55, break_long_words=True, break_on_hyphens=True)
-    if hl:
-        out["hyprlock"] = hl
     return out
 
 
@@ -493,8 +504,44 @@ def build(procs):
                 except Exception:
                     pass  # one bad parser must never take the daemon down
             entry["sessions"] = sessions
+            # Per-agent lock-screen payload, built uniformly from the agent's latest
+            # messages — this is what lets hyprlock render any agent in the JRPG box.
+            hl = _hyprlock_payload(entry.get("lastUser"), entry.get("lastAssistant"))
+            if hl:
+                entry["hyprlock"] = hl
         agents[name] = entry
     return agents, active
+
+
+def _rep_mtime(name, entry):
+    """A running agent's 'last activity' time, used to pick the lock-screen speaker.
+    Prefer its session transcript's mtime; opencode keeps no transcript path, so fall
+    back to its sqlite db (or WAL) mtime."""
+    t = entry.get("transcript")
+    if t:
+        return _mtime(t)
+    if name == "opencode":
+        return max(_mtime(OPENCODE_DB), _mtime(OPENCODE_DB + "-wal"))
+    return 0.0
+
+
+def lockscreen(agents):
+    """Top-level lock-screen payload. The JRPG box shows ONE speaker (the most
+    recently active running agent) plus a roster of every running agent so the
+    lock screen reflects parallel sessions across different harnesses. Returns None
+    when nothing is running (hyprlock hides the box)."""
+    running = [n for n in ("claude", "codex", "gemini", "opencode") if agents[n]["running"]]
+    if not running:
+        return None
+    speaker = max(running, key=lambda n: _rep_mtime(n, agents[n]))
+    roster = [speaker] + [n for n in running if n != speaker]  # speaker first
+    out = {"speaker": DISPLAY[speaker], "running": [DISPLAY[n] for n in roster]}
+    hl = agents[speaker].get("hyprlock") or {}
+    if hl.get("user"):
+        out["user"] = hl["user"]
+    if hl.get("lines"):
+        out["lines"] = hl["lines"]
+    return out
 
 
 def atomic_write(payload):
@@ -518,6 +565,9 @@ def main():
                 "active": active,
                 "agents": agents,
             }
+            hl = lockscreen(agents)
+            if hl is not None:
+                doc["hyprlock"] = hl
             # Write every tick (cheap tmpfs write) so the file mtime is a reliable
             # heartbeat — consumers use it to tell a live daemon from a dead one.
             # Per-agent parsing is mtime-cached, so an idle tick is nearly free.
