@@ -1,4 +1,28 @@
-{ ... }:
+{ pkgs, ... }:
+let
+  # Resilient weather fetch for the waybar custom/weather module.
+  # wttrbar needs an explicit --location and panics on an empty/rate-limited
+  # response (which previously broke the whole bar). The old config passed the
+  # literal string "auto", so wttr.in resolved it to a bogus location. Instead:
+  # auto-detect the location from wttr.in's IP geolocation (works on a moving
+  # laptop), cache the last good JSON, and always emit valid JSON so the bar
+  # never breaks.
+  weatherScript = pkgs.writeShellScript "waybar-weather" ''
+    cache="$XDG_RUNTIME_DIR/waybar-weather.json"
+    loc=$(${pkgs.curl}/bin/curl -sf --max-time 10 "https://wttr.in/?format=%l" 2>/dev/null)
+    if [ -n "$loc" ]; then
+      out=$(${pkgs.wttrbar}/bin/wttrbar --location "$loc" --fahrenheit --mph 2>/dev/null)
+      case "$out" in
+        '{'*) echo "$out" | tee "$cache"; exit 0 ;;
+      esac
+    fi
+    if [ -s "$cache" ]; then
+      cat "$cache"
+    else
+      echo '{"text":"","tooltip":"weather unavailable"}'
+    fi
+  '';
+in
 {
   programs.waybar = {
     enable = true;
@@ -74,7 +98,7 @@
           tooltip = false;
         };
         "custom/weather" = {
-          exec = "wttrbar --location auto";
+          exec = "${weatherScript}";
           return-type = "json";
           interval = 1800;
           format = "{}";
