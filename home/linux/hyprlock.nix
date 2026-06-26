@@ -61,7 +61,10 @@ let
       read -r CACHED_TS < "$CACHE"
       [ $(($EPOCHSECONDS - CACHED_TS)) -lt 2 ] && exit 0
     fi
-    if pgrep -x claude >/dev/null 2>&1; then
+    # On NixOS the claude-code binary is wrapped, so the process comm is
+    # ".claude-wrapped", not "claude" — match both so detection is robust
+    # whether or not the package wraps it.
+    if pgrep -x claude >/dev/null 2>&1 || pgrep -x .claude-wrapped >/dev/null 2>&1; then
       printf '%s' "$EPOCHSECONDS" > "$CACHE"
       exit 0
     else
@@ -372,7 +375,7 @@ in
       image = [{
         monitor = "";
         path = "~/nix-config/assets/avatar.png";
-        reload_cmd = "pgrep -x claude >/dev/null && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
+        reload_cmd = "(pgrep -x claude || pgrep -x .claude-wrapped) >/dev/null && echo ~/nix-config/assets/clawd-frame-$(($(date +%s) % 4)).png || echo ~/nix-config/assets/avatar.png";
         reload_time = 1;
         size = 300;
         rounding = -1;
