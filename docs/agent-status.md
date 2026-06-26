@@ -88,10 +88,16 @@ JRPG-dialogue filtering (XML-tag stripping, markdown filtering, 600-char cap,
 `textwrap.wrap(width=55)`) lives in `_hyprlock_payload()` and is applied
 uniformly, reproducing the original claude-only parse byte-for-byte.
 
-**Parallel sessions:** `count`/`pids`/`sessions[]` reflect every running instance
-of an agent. claude (by project-slug dir), gemini (by cwd-basename) **and codex**
-(by the cwd recorded in each rollout's `session_meta`) resolve each session to its
-own transcript, so `sessions[].lastUser/lastAssistant` are per-instance. opencode
+**Parallel sessions:** `count`/`pids`/`sessions[]` reflect every running *instance*
+of an agent — where an instance is a **session-root** process. A single agent
+spawns child processes of the same comm (Claude Code runs subagents and a pool of
+`cc-daemon` "spare" workers, all `.claude-wrapped`); `scan_procs()` keeps only pids
+whose parent isn't another process of the same agent, so those trees collapse into
+the one interactive session that owns them instead of showing up as 8 phantom
+sessions. Separately-launched sessions (each parented by a shell) stay distinct.
+claude (by project-slug dir), gemini (by cwd-basename) **and codex** (by the cwd
+recorded in each rollout's `session_meta`) resolve each session to its own
+transcript, so `sessions[].lastUser/lastAssistant` are per-instance. opencode
 keeps no per-session cwd index, so its sessions share the newest message.
 
 The **top-level `hyprlock`** is what the lock screen reads. `hyprlock.sessions[]`

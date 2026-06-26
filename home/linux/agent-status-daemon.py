@@ -54,9 +54,31 @@ COMM_MATCH = {
 GEMINI_RE = re.compile(r"(?:^|/)gemini\.js(?:\s|$)")
 
 
+def _ppid(pid):
+    """Parent pid from /proc/<pid>/stat. The comm field is paren-wrapped and may itself
+    contain spaces or parens, so split on the LAST ')': the remainder is
+    `state ppid ...`, making ppid the second whitespace token."""
+    try:
+        with open("/proc/%d/stat" % pid) as f:
+            after = f.read().rsplit(")", 1)[1].split()
+        return int(after[1])
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
 def scan_procs():
-    """Return {agent_name: [pid, ...]} for every running agent."""
-    found = {name: [] for name in ("claude", "codex", "gemini", "opencode")}
+    """Return {agent_name: [pid, ...]} for every running agent, keeping only
+    *session-root* processes.
+
+    A single agent instance spawns child processes of the SAME comm — Claude Code in
+    particular runs subagents and a pool of `cc-daemon` 'spare' workers, all
+    `.claude-wrapped`. Counting each as a session makes one open instance look like 8
+    parallel sessions on the lock screen. A pid is a root iff its parent isn't another
+    process of the same agent, so subagent/worker trees collapse into the interactive
+    session that owns them. Genuinely separate sessions (each launched from a shell, so
+    parented by a non-agent process) keep distinct roots and still appear individually."""
+    raw = {name: [] for name in ("claude", "codex", "gemini", "opencode")}
+    ppid_of = {}
     mypid = os.getpid()
     for entry in os.listdir("/proc"):
         if not entry.isdigit():
@@ -72,7 +94,8 @@ def scan_procs():
         matched = False
         for name, want in COMM_MATCH.items():
             if comm == want:
-                found[name].append(pid)
+                raw[name].append(pid)
+                ppid_of[pid] = _ppid(pid)
                 matched = True
                 break
         if matched:
@@ -85,7 +108,16 @@ def scan_procs():
             except (FileNotFoundError, ProcessLookupError, PermissionError):
                 continue
             if GEMINI_RE.search(cmdline):
-                found["gemini"].append(pid)
+                raw["gemini"].append(pid)
+                ppid_of[pid] = _ppid(pid)
+    # Collapse subagent/worker trees to their root: drop any pid whose parent is another
+    # process of the SAME agent. (Parents are resolved within each agent's own pid set,
+    # so a child of a different agent — which doesn't happen in practice — wouldn't hide
+    # a real root.)
+    found = {}
+    for name, pids in raw.items():
+        pset = set(pids)
+        found[name] = [p for p in pids if ppid_of.get(p, 0) not in pset]
     return found
 
 
