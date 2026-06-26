@@ -13,7 +13,7 @@
     discord
     slack
     telegram-desktop
-    obsidian
+    (obsidian.override { electron_40 = electron_40-bin; })
 
     # Media
     mpv
