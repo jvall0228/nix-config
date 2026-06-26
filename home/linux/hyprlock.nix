@@ -148,7 +148,12 @@ let
     if [ "''${HTOTAL:-0}" -gt 1 ] 2>/dev/null; then
       POS="$((HIDX + 1))/$HTOTAL"
       DIRSPAN=""
-      [ -n "$HDIR" ] && DIRSPAN="<span foreground=\"${colors.green}\">''${HDIR}</span>  "
+      if [ -n "$HDIR" ]; then
+        # HDIR is a filesystem-derived basename — escape pango markup (a dir like
+        # "R&D" or "a<b" would otherwise produce malformed markup and blank the label).
+        HDIR="''${HDIR//&/\&amp;}"; HDIR="''${HDIR//</\&lt;}"; HDIR="''${HDIR//>/\&gt;}"
+        DIRSPAN="<span foreground=\"${colors.green}\">''${HDIR}</span>  "
+      fi
       SUBTITLE="''${DIRSPAN}<span foreground=\"${colors.comment}\">[''${POS}]</span>  "
     fi
 
@@ -205,9 +210,12 @@ let
     MSG=$(cat "$D/clawd-jrpg-user" 2>/dev/null)
     [ -z "$MSG" ] && exit 0
     # Escape pango markup
-    MSG="''${MSG//&/&amp;}"
-    MSG="''${MSG//</&lt;}"
-    MSG="''${MSG//>/&gt;}"
+    # In bash, an unescaped '&' in a //-substitution replacement means "the matched
+    # text", so it must be written \& to emit a literal '&' — otherwise '<' would turn
+    # into '<lt;' and the Pango markup is malformed (blanks the label).
+    MSG="''${MSG//&/\&amp;}"
+    MSG="''${MSG//</\&lt;}"
+    MSG="''${MSG//>/\&gt;}"
     echo "          <span foreground=\"${colors.green}\">You:</span>  <span foreground=\"${colors.fg}\">''${MSG}</span>          "
   '';
 
@@ -358,7 +366,7 @@ let
       ELLIPSIS=""
       [ $IS_LAST_PAGE_LINE -eq 1 ] && [ $HAS_MORE -eq 1 ] && [ $STILL_TYPING -eq 0 ] && ELLIPSIS="..."
 
-      ESCAPED="''${VISIBLE//&/&amp;}"; ESCAPED="''${ESCAPED//</&lt;}"; ESCAPED="''${ESCAPED//>/&gt;}"
+      ESCAPED="''${VISIBLE//&/\&amp;}"; ESCAPED="''${ESCAPED//</\&lt;}"; ESCAPED="''${ESCAPED//>/\&gt;}"
 
       CURSOR_STR=""
       if [ $STILL_TYPING -eq 1 ]; then
