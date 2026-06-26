@@ -17,6 +17,9 @@
   hardware.bluetooth.powerOnBoot = false;
   services.blueman.enable = true;
 
+  # Firmware updates via LVFS (BIOS/EC/Thunderbolt). Check with `fwupdmgr get-updates`.
+  services.fwupd.enable = true;
+
   # Swap file for hibernation (adjust size to match RAM)
   swapDevices = [{
     device = "/swap/swapfile";
