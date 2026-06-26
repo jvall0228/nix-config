@@ -49,23 +49,31 @@ detection or transcript parsing.
   "any":       true,                      // is any agent running?
   "active":    "claude",                  // first running agent, or null
   "hyprlock": {                           // top-level lock-screen payload (omitted
-    "speaker":  "Codex",                  //   when nothing runs). The ONE agent the
-    "running":  ["Codex", "Claude"],      //   JRPG box "speaks" as — the most
-    "user":     "truncated ≤49 chars",    //   recently active agent — plus a roster
-    "lines":    ["width-55 wrapped", "…"] //   of every running agent (speaker first).
+    "speaker":  "Codex",                  //   when nothing runs) = sessions[0].
+    "running":  ["Codex", "Claude"],      //   distinct agent names (speaker first)
+    "user":     "truncated ≤49 chars",    //   sessions[0].user  (default view)
+    "lines":    ["width-55 wrapped", "…"], //  sessions[0].lines (default view)
+    "sessions": [                          // ALL running sessions, most-active first;
+      { "agent": "Codex",  "dir": "web",   //   the lock screen cycles through these.
+        "cwd": "/home/javels/web",
+        "user": "…", "lines": ["…"] },     //   each session's OWN messages
+      { "agent": "Claude", "dir": "nix-config", "cwd": "…", "user": "…", "lines": ["…"] }
+    ]
   },
   "agents": {
     "claude": {
       "running": true,
-      "count":   1,
-      "pids":    [3697],
-      "lastUser":      "…",               // latest human prompt (cleaned)
-      "lastAssistant": "…",               // latest assistant text (cleaned)
+      "count":   2,                        // instance count (parallel sessions)
+      "pids":    [3697, 4011],
+      "lastUser":      "…",               // most-recently-active session's (cleaned)
+      "lastAssistant": "…",
       "transcript":    "/home/.../<uuid>.jsonl",
-      "hyprlock": {                        // per-agent lock-screen payload (ALL agents)
-        "user":  "truncated ≤49 chars",
-        "lines": ["width-55 wrapped", "…"]
-      }
+      "hyprlock": { "user": "…", "lines": ["…"] },  // per-agent (newest session)
+      "sessions": [                        // one per running instance, cwd-resolved
+        { "pid": 3697, "cwd": "/home/javels/nix-config",
+          "transcript": "…", "lastUser": "…", "lastAssistant": "…" },
+        { "pid": 4011, "cwd": "/home/javels/notes", "transcript": "…", "lastUser": "…", "lastAssistant": "…" }
+      ]
     },
     "codex":    { "running": false, "count": 0, "pids": [] },
     "gemini":   { "running": false, "count": 0, "pids": [] },
@@ -75,17 +83,23 @@ detection or transcript parsing.
 ```
 
 Message fields are present only for **running** agents (parsing is gated on the
-process existing). Every running agent now carries a `hyprlock` payload — the
+process existing). Every running agent carries a `hyprlock` payload — the
 JRPG-dialogue filtering (XML-tag stripping, markdown filtering, 600-char cap,
 `textwrap.wrap(width=55)`) lives in `_hyprlock_payload()` and is applied
 uniformly, reproducing the original claude-only parse byte-for-byte.
 
-The **top-level `hyprlock`** is what the lock screen reads. Its `speaker` is the
-most-recently-active running agent (by transcript mtime; opencode falls back to
-its db mtime) and drives the box header + typewriter; `running` lists every
-running agent (speaker first) so the lock screen reflects parallel sessions
-across harnesses. It is **absent** when no agent runs — that absence is the
-signal hyprlock uses to hide the box (see `.any`).
+**Parallel sessions:** `count`/`pids`/`sessions[]` reflect every running instance
+of an agent. claude (by project-slug dir), gemini (by cwd-basename) **and codex**
+(by the cwd recorded in each rollout's `session_meta`) resolve each session to its
+own transcript, so `sessions[].lastUser/lastAssistant` are per-instance. opencode
+keeps no per-session cwd index, so its sessions share the newest message.
+
+The **top-level `hyprlock`** is what the lock screen reads. `hyprlock.sessions[]`
+is every running session across all agents, ordered most-recently-active first,
+each with its agent, working `dir`, and own payload — this is the list the lock
+screen **cycles** through (Super+`]`/`[`). `speaker`/`user`/`lines` mirror
+`sessions[0]` (the default view). The whole object is **absent** when nothing
+runs — that absence is the signal hyprlock uses to hide the box (see `.any`).
 
 ## Consuming the status
 
@@ -156,10 +170,20 @@ Parsers are **mtime-cached** — a running-but-idle agent costs ~nothing per tic
   (`clawd-jrpg-ts`, reset only when displayed text changes) lives in
   `hyprlock.nix`, *not* the daemon — so the animation still types "fresh on lock"
   even though the daemon parses continuously while unlocked.
-- **One speaker + a roster, not stacked boxes.** The JRPG box shows the single
-  most-recently-active agent (the daemon's top-level `hyprlock.speaker`) and lists
-  the others as a header roster, rather than rendering a box per agent. Keeps the
-  single-dialogue aesthetic while making parallel sessions visible.
+- **One box, cycled — not stacked boxes.** The JRPG box shows one session at a
+  time (default: the most-recently-active, `hyprlock.sessions[0]`) and is **cycled**
+  through the rest with Super+`]` / Super+`[`. Keeps the single-dialogue aesthetic
+  while making every parallel session reachable. The header shows the current
+  session's `<agent> <dir> [n/total]` so each is identifiable; a single session
+  renders as just `<agent>`.
+- **Cycling mechanics (lock-screen-safe).** hyprlock routes normal keys to the
+  password field, so the cycle keys are Hyprland **`bindl`** binds (fire while
+  locked) → `clawd-session-cycle` (in `hyprland.nix`), which bumps
+  `clawd-session-cursor` and ages the text cache so the next render re-reads. The
+  cursor resets to 0 when no agent runs (in `clawd-pgrep-check`), so each lock
+  starts at the speaker. One reader (`clawd-jrpg-text` line 1) does the ~1 Hz jq
+  and writes flat caches (`clawd-jrpg-head`/`-user`/`-text`); the header & user
+  labels just `cat` them, keeping the 30 ms render path fork-free.
 - **The box is an `image`, not a `shape`, so it can hide.** hyprlock `shape`s are
   always drawn (an empty bordered box would linger when idle); an `image` can swap
   its source via `reload_cmd`. The box chrome is pre-rendered to PNGs at build time
@@ -178,6 +202,7 @@ Parsers are **mtime-cached** — a running-but-idle agent costs ~nothing per tic
 | `home/linux/agent-status.nix`       | systemd user service + `agent-status` CLI |
 | `home/linux/waybar.nix`             | `custom/agent` indicator (polls the JSON) |
 | `home/linux/hyprlock.nix`           | JRPG lock-screen widget (consumes the JSON) |
+| `home/linux/hyprland.nix`           | `clawd-session-cycle` + Super+`]`/`[` cycle binds |
 | `modules/nixos/agent-context.nix`   | advertises the daemon in `/etc/agent-context.md` |
 
 ## Operating
@@ -187,3 +212,7 @@ systemctl --user status  agent-status     # health
 systemctl --user restart agent-status     # after editing the daemon + rebuild
 journalctl --user -u agent-status -f       # logs
 ```
+
+Lock screen: the JRPG box auto-hides when no agent runs. With multiple sessions
+(across claude/codex/gemini/opencode), **Super+`]`** cycles to the next session
+and **Super+`[`** to the previous — the header shows `<agent> <dir> [n/total]`.

@@ -53,14 +53,16 @@ in
 
     ## AI Agent Status (live, queryable)
     - A user daemon (home/linux/agent-status.nix) reports which AI coding agents are
-      running (claude, codex, gemini, opencode) and each running agent's latest
-      user/assistant message. It rescans every 1s.
+      running (claude, codex, gemini, opencode), each running agent's latest
+      user/assistant message, and every parallel session (per working directory). It
+      rescans every 1s.
     - It publishes \$XDG_RUNTIME_DIR/agent-status.json. Query it with the
       "agent-status" command (also: agent-status --json, agent-status <name>), or read
-      the JSON directly with jq.
+      the JSON directly with jq. The cycle-through list is .hyprlock.sessions.
     - Consumers: the Hyprland lock screen (home/linux/hyprlock.nix JRPG widget) and the
       waybar agent indicator (home/linux/waybar.nix custom/agent) both read this file —
-      anything else can too.
+      anything else can too. The lock-screen box auto-hides when nothing runs; with
+      multiple sessions, Super+] / Super+[ cycle through them.
     - Service: systemctl --user status agent-status. Schema + how to add an agent:
       docs/agent-status.md
 

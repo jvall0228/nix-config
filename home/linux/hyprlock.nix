@@ -75,12 +75,20 @@ let
   '';
 
   # Interface files (in $XDG_RUNTIME_DIR):
-  #   clawd-jrpg-text    — word-wrapped dialogue lines (newline-separated)
-  #   clawd-jrpg-user    — user's last message (single line, max 49 chars)
-  #   clawd-jrpg-ts      — epoch nanoseconds when text last changed
-  #   clawd-running      — pgrep cache (epoch seconds)
-  #   clawd-line-{1,2,3} — rendered Pango markup for each display line
-  #   hyprlock-weather   — cached weather string from wttr.in
+  #   clawd-jrpg-text     — word-wrapped dialogue lines (newline-separated)
+  #   clawd-jrpg-user     — current session's user message (single line, max 49 chars)
+  #   clawd-jrpg-head     — current session meta for the header: agent\tdir\ttotal\tidx
+  #   clawd-jrpg-ts       — epoch nanoseconds when text last changed
+  #   clawd-session-cursor— which session is shown (index; set by the cycle keybind)
+  #   clawd-running       — pgrep cache (epoch seconds)
+  #   clawd-line-{1,2,3}  — rendered Pango markup for each display line
+  #   hyprlock-weather    — cached weather string from wttr.in
+  #
+  # clawd-jrpg-text (line 1) is the single daemon reader: ~1x/s it picks the session
+  # at clawd-session-cursor from agent-status.json's .hyprlock.sessions[] and refreshes
+  # the text/user/head caches. The header & user labels just `cat` those caches, so the
+  # 30ms render path stays fork-free. The cycle keybind bumps the cursor and forces an
+  # immediate re-read (see clawd-session-cycle in hyprland.nix).
 
   # Shared pgrep cache — checked at most every 2 seconds
   clawd-pgrep-check = pkgs.writeShellScript "clawd-pgrep-check" ''
@@ -103,7 +111,7 @@ let
       if ${pkgs.jq}/bin/jq -e '.any == true' "$STATUS" >/dev/null 2>&1; then
         printf '%s' "$EPOCHSECONDS" > "$CACHE"; exit 0
       else
-        rm -f "$CACHE"; exit 1
+        rm -f "$CACHE" "$D/clawd-session-cursor"; exit 1
       fi
     fi
     if pgrep -x .claude-wrapped >/dev/null 2>&1 \
@@ -114,23 +122,35 @@ let
       printf '%s' "$EPOCHSECONDS" > "$CACHE"
       exit 0
     else
-      rm -f "$CACHE"
+      # Idle: drop the caches AND reset the session cursor so the next lock starts
+      # at the speaker (session 0) instead of a stale index.
+      rm -f "$CACHE" "$D/clawd-session-cursor"
       exit 1
     fi
   '';
 
-  # Header script: "<Speaker> : Verb..."  (+ roster of other running agents)
+  # Header script: "<Speaker> : Verb..."  (+ working dir and [n/total] when cycling)
   clawd-jrpg-header = pkgs.writeShellScript "clawd-jrpg-header" ''
     ${clawd-pgrep-check} || exit 0
 
-    # The "speaker" is the most-recently-active agent (daemon-chosen); the roster is
-    # every OTHER running agent, so parallel sessions across harnesses are visible.
-    STATUS="$XDG_RUNTIME_DIR/agent-status.json"
-    SPEAKER=$(${pkgs.jq}/bin/jq -r '.hyprlock.speaker // "Claude"' "$STATUS" 2>/dev/null)
-    [ -z "$SPEAKER" ] && SPEAKER="Claude"
-    OTHERS=$(${pkgs.jq}/bin/jq -r '(.hyprlock.running // []) | .[1:] | join("  ·  ")' "$STATUS" 2>/dev/null)
-    ROSTER=""
-    [ -n "$OTHERS" ] && ROSTER="    <span foreground=\"${colors.comment}\">+  ''${OTHERS}</span>"
+    # Current session's agent + dir + position come from the head cache that
+    # clawd-jrpg-text refreshes (cheap cat; no jq on this 30ms render path). When more
+    # than one session is running, show "<Agent>  <dir>  [idx/total]" so each cycled
+    # session is identifiable; a single session stays just "<Agent>".
+    D="$XDG_RUNTIME_DIR"
+    SPEAKER="Claude"; SUBTITLE=""
+    # cat (not a `< file` redirect) so a momentarily-missing cache — e.g. the first
+    # frame after lock, before clawd-jrpg-text has run once — doesn't leak a redirect
+    # error; the herestring then parses whatever's there (empty → defaults below).
+    HAGENT=""; HDIR=""; HTOTAL=0; HIDX=0
+    IFS=$'\t' read -r HAGENT HDIR HTOTAL HIDX <<< "$(cat "$D/clawd-jrpg-head" 2>/dev/null)"
+    [ -n "$HAGENT" ] && SPEAKER="$HAGENT"
+    if [ "''${HTOTAL:-0}" -gt 1 ] 2>/dev/null; then
+      POS="$((HIDX + 1))/$HTOTAL"
+      DIRSPAN=""
+      [ -n "$HDIR" ] && DIRSPAN="<span foreground=\"${colors.green}\">''${HDIR}</span>  "
+      SUBTITLE="''${DIRSPAN}<span foreground=\"${colors.comment}\">[''${POS}]</span>  "
+    fi
 
     VERBS=(
       Accomplishing Architecting Baking Bloviating Bootstrapping Brewing
@@ -162,7 +182,7 @@ let
     if [ $CHARS -lt $VLEN ]; then
       BLINK=$(( (NOW_NS / 500000000) % 2 ))
       [ $BLINK -eq 0 ] && CURSOR="<span foreground=\"${colors.cyan}\">█</span>" || CURSOR=" "
-      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  <span foreground=\"${colors.selection}\">:</span>  <span foreground=\"${colors.cyan}\">''${VISIBLE}</span>''${CURSOR}''${ROSTER}          "
+      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  ''${SUBTITLE}<span foreground=\"${colors.selection}\">:</span>  <span foreground=\"${colors.cyan}\">''${VISIBLE}</span>''${CURSOR}          "
     else
       # Gradient shimmer: wave of color across verb characters
       COLORS=("${colors.comment}" "${colors.blue}" "${colors.cyan}" "${colors.lightCyan}" "${colors.cyan}" "${colors.blue}" "${colors.comment}")
@@ -174,7 +194,7 @@ let
         color_idx=$(( (ch + PHASE) % 7 ))
         SHIMMER="''${SHIMMER}<span foreground=\"''${COLORS[$color_idx]}\">''${FULL:$ch:1}</span>"
       done
-      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  <span foreground=\"${colors.selection}\">:</span>  ''${SHIMMER}''${ROSTER}          "
+      echo "          <span foreground=\"${colors.purple}\">''${SPEAKER}</span>  ''${SUBTITLE}<span foreground=\"${colors.selection}\">:</span>  ''${SHIMMER}          "
     fi
   '';
 
@@ -220,14 +240,30 @@ let
     CACHE_MTIME=$(stat -c %Y "$D/clawd-jrpg-text" 2>/dev/null || echo 0)
     if [ $((NOW_S - CACHE_MTIME)) -ge 1 ]; then
       STATUS="$D/agent-status.json"
-      # Top-level .hyprlock is the daemon-chosen speaker (most-recently-active agent),
-      # so the typewriter follows whichever agent — claude/codex/gemini/opencode — is
-      # currently producing output, not claude alone.
-      MSG=$(${pkgs.jq}/bin/jq -r '.hyprlock.lines // [] | join("\n")' "$STATUS" 2>/dev/null)
-      USR=$(${pkgs.jq}/bin/jq -r '.hyprlock.user // empty' "$STATUS" 2>/dev/null)
+      # Which session to display: the cursor (set by the cycle keybind) wrapped into
+      # the running-session count. .hyprlock.sessions[] is most-recently-active first,
+      # so index 0 is the speaker. One jq pass yields idx/total/agent/dir (all non-empty
+      # so the tab-split can't collapse fields); the agent/assistant text follow.
+      CUR=$(cat "$D/clawd-session-cursor" 2>/dev/null); [ -z "$CUR" ] && CUR=0
+      case "$CUR" in *[!0-9-]*) CUR=0 ;; esac
+      META=$(${pkgs.jq}/bin/jq -r --argjson c "$CUR" '
+        (.hyprlock.sessions // []) as $s | ($s|length) as $n
+        | if $n == 0 then "0\t0\tClaude\tClaude"
+          else (($c % $n + $n) % $n) as $i
+            | "\($i)\t\($n)\t\($s[$i].agent // "Claude")\t\($s[$i].dir // "Claude")" end
+      ' "$STATUS" 2>/dev/null)
+      IFS=$'\t' read -r IDX TOTAL HAGENT HDIR <<< "$META"
+      [ -z "$IDX" ] && IDX=0; case "$IDX" in *[!0-9]*) IDX=0 ;; esac
+      # Head cache the header cats (agent \t dir \t total \t idx); trailing newline so
+      # the header's `read` gets a clean line.
+      printf '%s\t%s\t%s\t%s\n' "''${HAGENT:-Claude}" "''${HDIR:-Claude}" "''${TOTAL:-0}" "$IDX" > "$D/clawd-jrpg-head"
+      MSG=$(${pkgs.jq}/bin/jq -r --argjson i "$IDX" '.hyprlock.sessions[$i].lines // [] | join("\n")' "$STATUS" 2>/dev/null)
+      USR=$(${pkgs.jq}/bin/jq -r --argjson i "$IDX" '.hyprlock.sessions[$i].user // empty' "$STATUS" 2>/dev/null)
       if [ -n "$USR" ]; then
         OLD_U=$(cat "$D/clawd-jrpg-user" 2>/dev/null)
         [ "$USR" != "$OLD_U" ] && printf '%s' "$USR" > "$D/clawd-jrpg-user"
+      else
+        : > "$D/clawd-jrpg-user"  # this session has no user line — clear any stale one
       fi
       if [ -n "$MSG" ]; then
         OLD=$(cat "$D/clawd-jrpg-text" 2>/dev/null)
@@ -453,7 +489,7 @@ in
         # User message label (inside user box)
         {
           monitor = "";
-          text = ''cmd[update:2000] ${clawd-jrpg-user}'';
+          text = ''cmd[update:200] ${clawd-jrpg-user}'';
           font_size = 18;
           font_family = "JetBrainsMono Nerd Font";
           color = rgb.fg;

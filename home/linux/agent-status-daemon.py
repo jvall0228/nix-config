@@ -145,24 +145,6 @@ def _open(path):
     return open(path, encoding="utf-8", errors="replace")
 
 
-def _last_line(path):
-    """Last non-empty line of a (possibly large, append-only) file without
-    materialising the whole file — reads at most the trailing 64 KiB."""
-    try:
-        with open(path, "rb") as f:
-            f.seek(0, os.SEEK_END)
-            size = f.tell()
-            back = min(size, 65536)
-            f.seek(size - back)
-            tail = f.read(back)
-    except OSError:
-        return None
-    for ln in reversed(tail.split(b"\n")):
-        if ln.strip():
-            return ln.decode("utf-8", "replace")
-    return None
-
-
 _PCACHE = {}
 
 
@@ -284,9 +266,44 @@ def _claude_parse(transcript):
     return out
 
 
-def codex_status():
-    transcript = _newest(_find(os.path.join(HOME, ".codex", "sessions"), ".jsonl", 5))
-    return _cached("codex", transcript, lambda: _codex_parse(transcript))
+_CODEX_CWD = {}  # rollout path -> cwd (recorded once in session_meta; immutable)
+
+
+def _codex_rollout_cwd(path):
+    """The cwd a codex rollout was started in (from its session_meta header line).
+    Cached per path since it never changes for a given rollout file."""
+    hit = _CODEX_CWD.get(path)
+    if hit is not None:
+        return hit
+    cwd = ""
+    try:
+        with _open(path) as f:
+            obj = json.loads(f.readline())
+        if obj.get("type") == "session_meta":
+            cwd = (obj.get("payload") or {}).get("cwd") or ""
+    except (OSError, ValueError):
+        cwd = ""
+    _CODEX_CWD[path] = cwd
+    return cwd
+
+
+def _codex_session(cwd):
+    """Resolve the codex rollout for the session running in `cwd` by matching the cwd
+    each rollout records in its session_meta header — so parallel codex sessions show
+    their own messages. Falls back to the newest rollout globally."""
+    rollouts = _find(os.path.join(HOME, ".codex", "sessions"), ".jsonl", 5)
+    if not rollouts:
+        return {}
+    rollouts.sort(key=_mtime, reverse=True)
+    transcript = None
+    if cwd:
+        for r in rollouts[:60]:  # newest-first; bound the per-tick cwd scan
+            if _codex_rollout_cwd(r) == cwd:
+                transcript = r
+                break
+    if not transcript:
+        transcript = rollouts[0]
+    return _cached(transcript, transcript, lambda: _codex_parse(transcript))
 
 
 def _codex_parse(transcript):
@@ -321,16 +338,9 @@ def _codex_parse(transcript):
                     last_user = text
     except (OSError, ValueError):
         return {}
-    # history.jsonl is the clean source of genuine prompts (no synthetic injects).
-    # It's append-only and unbounded, so read just the last line (not the whole file).
-    line = _last_line(os.path.join(HOME, ".codex", "history.jsonl"))
-    if line:
-        try:
-            obj = json.loads(line)
-            if obj.get("text"):
-                last_user = obj["text"].strip()
-        except json.JSONDecodeError:
-            pass
+    # Per-session parse: the rollout's own user messages (the `<...>` env-injection
+    # filter above keeps genuine prompts), NOT the global history.jsonl — that would
+    # be wrong when several codex sessions run at once.
     out = {}
     if last_user:
         out["lastUser"] = last_user
@@ -454,11 +464,12 @@ def _opencode_parse(db):
     return out
 
 
-# claude/gemini are cwd-keyed, so each running session is resolved to its own
-# transcript by cwd. codex/opencode aren't cheaply cwd-indexed, so their displayed
-# message is the newest session's (sessions[] still lists every running pid+cwd).
-SESSION_PARSERS = {"claude": _claude_session, "gemini": _gemini_session}
-NEWEST_PARSERS = {"codex": codex_status, "opencode": opencode_status}
+# claude/gemini/codex are cwd-keyed, so each running session is resolved to its own
+# transcript (claude by project-slug dir, gemini by cwd-basename, codex by the cwd
+# recorded in each rollout's session_meta). opencode keeps no per-session cwd index,
+# so its displayed message is the newest session's (sessions[] still lists every pid).
+SESSION_PARSERS = {"claude": _claude_session, "gemini": _gemini_session, "codex": _codex_session}
+NEWEST_PARSERS = {"opencode": opencode_status}
 
 # ---------------------------------------------------------------------------
 # Main loop
@@ -525,22 +536,55 @@ def _rep_mtime(name, entry):
     return 0.0
 
 
+def _flat_sessions(agents):
+    """Every running session across all agents, flattened into one list ordered
+    most-recently-active first, each tagged with its agent + working directory and
+    its own lock-screen payload. This is the list the lock screen cycles through.
+    A session without its own messages (opencode) falls back to its agent's newest."""
+    flat = []
+    for name in ("claude", "codex", "gemini", "opencode"):
+        a = agents[name]
+        if not a.get("running"):
+            continue
+        agent_hl = a.get("hyprlock") or {}
+        for s in a.get("sessions", []):
+            su, sa = s.get("lastUser"), s.get("lastAssistant")
+            hl = _hyprlock_payload(su, sa) if (su or sa) else agent_hl
+            cwd = (s.get("cwd") or "").rstrip("/")
+            mt = _mtime(s["transcript"]) if s.get("transcript") else _rep_mtime(name, a)
+            e = {"agent": DISPLAY[name],
+                 "dir": os.path.basename(cwd) or DISPLAY[name],
+                 "cwd": cwd, "_mt": mt}
+            if hl.get("user"):
+                e["user"] = hl["user"]
+            if hl.get("lines"):
+                e["lines"] = hl["lines"]
+            flat.append(e)
+    flat.sort(key=lambda e: e["_mt"], reverse=True)
+    for e in flat:
+        e.pop("_mt", None)
+    return flat
+
+
 def lockscreen(agents):
-    """Top-level lock-screen payload. The JRPG box shows ONE speaker (the most
-    recently active running agent) plus a roster of every running agent so the
-    lock screen reflects parallel sessions across different harnesses. Returns None
-    when nothing is running (hyprlock hides the box)."""
-    running = [n for n in ("claude", "codex", "gemini", "opencode") if agents[n]["running"]]
-    if not running:
+    """Top-level lock-screen payload. `sessions` is the cycle-through list (most
+    recently active first); the box defaults to sessions[0] — the "speaker". `running`
+    is the distinct agent names (speaker's first) for a glance. Returns None when
+    nothing is running, so hyprlock hides the box entirely."""
+    flat = _flat_sessions(agents)
+    if not flat:
         return None
-    speaker = max(running, key=lambda n: _rep_mtime(n, agents[n]))
-    roster = [speaker] + [n for n in running if n != speaker]  # speaker first
-    out = {"speaker": DISPLAY[speaker], "running": [DISPLAY[n] for n in roster]}
-    hl = agents[speaker].get("hyprlock") or {}
-    if hl.get("user"):
-        out["user"] = hl["user"]
-    if hl.get("lines"):
-        out["lines"] = hl["lines"]
+    seen, running = set(), []
+    for e in flat:
+        if e["agent"] not in seen:
+            seen.add(e["agent"])
+            running.append(e["agent"])
+    head = flat[0]
+    out = {"speaker": head["agent"], "running": running, "sessions": flat}
+    if head.get("user"):
+        out["user"] = head["user"]
+    if head.get("lines"):
+        out["lines"] = head["lines"]
     return out
 
 

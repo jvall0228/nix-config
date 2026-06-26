@@ -1,4 +1,28 @@
 { pkgs, ... }:
+let
+  # Cycle the lock screen's JRPG box through the running agent sessions. Bound to a
+  # lock-enabled (bindl) key so it works while hyprlock is up — hyprlock sends normal
+  # keys to the password field, but Hyprland still services bindl binds when locked.
+  # It bumps the session cursor that clawd-jrpg-text reads, then ages that cache's
+  # mtime so the next 30ms render re-reads immediately (instead of waiting ~1s).
+  clawd-session-cycle = pkgs.writeShellScript "clawd-session-cycle" ''
+    D="$XDG_RUNTIME_DIR"
+    STATUS="$D/agent-status.json"
+    TOTAL=$(${pkgs.jq}/bin/jq -r '.hyprlock.sessions // [] | length' "$STATUS" 2>/dev/null)
+    [ -z "$TOTAL" ] && exit 0
+    case "$TOTAL" in *[!0-9]*) exit 0 ;; esac
+    [ "$TOTAL" -le 1 ] && exit 0   # nothing to cycle through
+    CUR=$(cat "$D/clawd-session-cursor" 2>/dev/null); [ -z "$CUR" ] && CUR=0
+    case "$CUR" in *[!0-9-]*) CUR=0 ;; esac
+    case "''${1:-next}" in
+      prev) CUR=$((CUR - 1)) ;;
+      *)    CUR=$((CUR + 1)) ;;
+    esac
+    CUR=$(( (CUR % TOTAL + TOTAL) % TOTAL ))
+    printf '%s' "$CUR" > "$D/clawd-session-cursor"
+    touch -d @0 "$D/clawd-jrpg-text" 2>/dev/null || true
+  '';
+in
 {
   home.packages = with pkgs; [
     kitty
@@ -86,6 +110,10 @@
       ];
 
       bindl = [
+        # Cycle the lock screen's JRPG box through running agent sessions (works while
+        # locked). bracketright = next, bracketleft = previous.
+        "$mod, bracketright, exec, ${clawd-session-cycle} next"
+        "$mod, bracketleft, exec, ${clawd-session-cycle} prev"
         ", XF86AudioRaiseVolume, exec, sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ && ags request osd volume'"
         ", XF86AudioLowerVolume, exec, sh -c 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && ags request osd volume'"
         ", XF86AudioMute, exec, sh -c 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && ags request osd volume'"
