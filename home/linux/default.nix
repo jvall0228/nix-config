@@ -2,6 +2,7 @@
 {
   imports = [
     ./desktop.nix
+    ./agent-status.nix
     ./hyprlock.nix
     ./weather.nix
     ./wlogout.nix

@@ -61,9 +61,19 @@ let
       read -r CACHED_TS < "$CACHE"
       [ $(($EPOCHSECONDS - CACHED_TS)) -lt 2 ] && exit 0
     fi
-    # On NixOS the claude-code binary is wrapped, so the process comm is
-    # ".claude-wrapped", not "claude" — match both so detection is robust
-    # whether or not the package wraps it.
+    # Prefer the agent-status daemon's published state; fall back to a direct
+    # pgrep if its file is missing or stale (>5s) so the lock screen still works
+    # when the daemon is down. (NixOS wraps the binary, so the comm is
+    # ".claude-wrapped", not "claude" — match both.)
+    STATUS="$D/agent-status.json"
+    MT=$(stat -c %Y "$STATUS" 2>/dev/null || echo 0)
+    if [ $(($EPOCHSECONDS - MT)) -le 5 ]; then
+      if ${pkgs.jq}/bin/jq -e '.agents.claude.running == true' "$STATUS" >/dev/null 2>&1; then
+        printf '%s' "$EPOCHSECONDS" > "$CACHE"; exit 0
+      else
+        rm -f "$CACHE"; exit 1
+      fi
+    fi
     if pgrep -x claude >/dev/null 2>&1 || pgrep -x .claude-wrapped >/dev/null 2>&1; then
       printf '%s' "$EPOCHSECONDS" > "$CACHE"
       exit 0
@@ -155,101 +165,35 @@ let
     NOW_NS=$(date +%s%N)
     NOW_S=$((NOW_NS / 1000000000))
 
-    # Cache transcript read (heavy — only every 2 seconds)
+    # Pull the parsed transcript content from the agent-status daemon, which owns
+    # the heavy pgrep + transcript parse and publishes agent-status.json. We only
+    # read it ~once/second (the `touch` keeps this rate-limit working); the 30ms
+    # render below stays a cheap cat of the flat cache files. The ts-reset-on-
+    # content-change rule is the load-bearing typewriter clock and stays HERE in
+    # the consumer, so the animation restarts from char 0 only when (and as soon
+    # as) the displayed text actually changes — exactly as before, lock or not.
     CACHE_MTIME=$(stat -c %Y "$D/clawd-jrpg-text" 2>/dev/null || echo 0)
-    if [ $((NOW_S - CACHE_MTIME)) -ge 2 ]; then
-      SESSIONS_DIR="$HOME/.claude/projects"
-      TRANSCRIPT=$(find "$SESSIONS_DIR" -maxdepth 2 -name "*.jsonl" -printf '%T@ %p\n' 2>/dev/null \
-        | sort -rn | head -1 | cut -d' ' -f2-)
-      if [ -n "$TRANSCRIPT" ]; then
-        export TRANSCRIPT D
-        MSG=$(${pkgs.python3}/bin/python3 << 'PYEOF'
-import json, os, re, textwrap
-transcript = os.environ.get("TRANSCRIPT", "")
-if not transcript:
-    exit()
-d = os.environ.get("D", "/tmp")
-last = None
-last_user = None
-with open(transcript) as f:
-    for line in f:
-        line = line.strip()
-        if not line:
-            continue
-        data = json.loads(line)
-        if data.get("type") == "user":
-            content = data.get("message", {}).get("content", [])
-            texts = []
-            if isinstance(content, str):
-                texts.append(content.strip())
-            elif isinstance(content, list):
-                for block in content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        texts.append(block.get("text", "").strip())
-                    elif isinstance(block, str):
-                        texts.append(block.strip())
-            for t in texts:
-                if not t:
-                    continue
-                # Strip XML/system tags to get actual user text
-                clean = re.sub(r"<[^>]+>", "", t).strip()
-                # Skip skill expansions (start with #) and empty after strip
-                if not clean or clean[0] == "#":
-                    continue
-                last_user = clean
-        if data.get("type") == "assistant":
-            for block in data.get("message", {}).get("content", []):
-                if block.get("type") == "text":
-                    t = block.get("text", "").strip()
-                    if t:
-                        # Strip XML/system tags from assistant text too
-                        t = re.sub(r"<[^>]+>", "", t).strip()
-                        if t:
-                            last = t
-# Write user message
-user_path = os.path.join(d, "clawd-jrpg-user")
-if last_user:
-    u = last_user.replace("\n", " ").strip()
-    if len(u) > 49:
-        u = u[:46] + "..."
-    old_u = ""
-    try:
-        with open(user_path, "r") as uf:
-            old_u = uf.read().strip()
-    except FileNotFoundError:
-        pass
-    if u != old_u:
-        with open(user_path, "w") as uf:
-            uf.write(u)
-if last:
-    parts = []
-    total = 0
-    for l in last.split("\n"):
-        l = l.strip()
-        if not l or l[0] in "#|" or l.startswith("```") or (l[0] == "-" and not l.startswith("- **")):
-            continue
-        if l.startswith("- **"):
-            l = l.lstrip("- ").replace("**", "")
-        parts.append(l)
-        total += len(l) + 1
-        if total >= 600:
-            break
-    if parts:
-        text = " ".join(parts)
-        lines = textwrap.wrap(text, width=55, break_long_words=True, break_on_hyphens=True)
-        if lines:
-            print("\n".join(lines))
-PYEOF
-        )
-        if [ -n "$MSG" ]; then
-          OLD=$(cat "$D/clawd-jrpg-text" 2>/dev/null)
-          if [ "$MSG" != "$OLD" ]; then
-            echo "$MSG" > "$D/clawd-jrpg-text"
-            echo "$NOW_NS" > "$D/clawd-jrpg-ts"
-          else
-            touch "$D/clawd-jrpg-text"
-          fi
+    if [ $((NOW_S - CACHE_MTIME)) -ge 1 ]; then
+      STATUS="$D/agent-status.json"
+      MSG=$(${pkgs.jq}/bin/jq -r '.agents.claude.hyprlock.lines // [] | join("\n")' "$STATUS" 2>/dev/null)
+      USR=$(${pkgs.jq}/bin/jq -r '.agents.claude.hyprlock.user // empty' "$STATUS" 2>/dev/null)
+      if [ -n "$USR" ]; then
+        OLD_U=$(cat "$D/clawd-jrpg-user" 2>/dev/null)
+        [ "$USR" != "$OLD_U" ] && printf '%s' "$USR" > "$D/clawd-jrpg-user"
+      fi
+      if [ -n "$MSG" ]; then
+        OLD=$(cat "$D/clawd-jrpg-text" 2>/dev/null)
+        if [ "$MSG" != "$OLD" ]; then
+          printf '%s\n' "$MSG" > "$D/clawd-jrpg-text"
+          printf '%s' "$NOW_NS" > "$D/clawd-jrpg-ts"
+        else
+          touch "$D/clawd-jrpg-text"
         fi
+      else
+        # No displayable text this tick — still refresh the mtime so the ~1s
+        # rate-limit holds (otherwise line-1 re-runs jq every 30ms). Empty file
+        # renders blank; ts stays unset so the typewriter shows nothing.
+        touch "$D/clawd-jrpg-text" 2>/dev/null
       fi
     fi
 

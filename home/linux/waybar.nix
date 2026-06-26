@@ -22,6 +22,36 @@ let
       echo '{"text":"","tooltip":"weather unavailable"}'
     fi
   '';
+
+  # Live AI-agent indicator. Consumes the agent-status daemon's JSON; emits empty
+  # text (waybar auto-hides the module) when nothing is running. waybar polls it
+  # every 2s (see the module's interval); the daemon never signals the bar.
+  agentScript = pkgs.writeShellScript "waybar-agent" ''
+    status="$XDG_RUNTIME_DIR/agent-status.json"
+    # Shape-tolerant: a missing/invalid file or wrong-shaped JSON yields no output,
+    # and the shell fallback below always emits a valid waybar JSON object.
+    out=$(${pkgs.jq}/bin/jq -c '
+      def esc: gsub("&";"&amp;") | gsub("<";"&lt;") | gsub(">";"&gt;");
+      [ (.agents? // {}) | objects | to_entries[] | select(.value.running == true) ] as $live
+      | if ($live|length) == 0 then { text: "" }
+        else {
+          text: ("󰚩  " + (if ($live|length) > 1
+                            then "\($live|length) agents"
+                            else $live[0].key end)),
+          class: "running",
+          tooltip: ( $live | map(
+              "● \(.key)  (pid \(.value.pids|map(tostring)|join(",")))"
+              + (if .value.lastAssistant
+                   then "\n   " + (.value.lastAssistant | gsub("[[:cntrl:] ]+"; " ") | .[0:90] | esc)
+                   else "" end)
+            ) | join("\n") )
+        } end
+    ' "$status" 2>/dev/null)
+    case "$out" in
+      "{"*) printf '%s\n' "$out" ;;
+      *)    echo '{"text":""}' ;;
+    esac
+  '';
 in
 {
   programs.waybar = {
@@ -34,6 +64,7 @@ in
         modules-left = [ "hyprland/workspaces" "hyprland/window" ];
         modules-center = [ "clock" ];
         modules-right = [
+          "custom/agent"
           "mpris"
           "idle_inhibitor"
           "custom/weather"
@@ -104,6 +135,17 @@ in
           format = "{}";
           tooltip = true;
         };
+        "custom/agent" = {
+          exec = "${agentScript}";
+          return-type = "json";
+          # Poll the daemon's JSON every 2s. Deliberately decoupled from the
+          # daemon (no signal/pkill) so the status producer can never destabilise
+          # the bar; 2s latency is irrelevant for a glanceable indicator.
+          interval = 2;
+          format = "{}";
+          tooltip = true;
+          max-length = 40;
+        };
         pulseaudio = {
           format = "{icon}  {volume}%";
           format-muted = "  muted";
@@ -139,6 +181,14 @@ in
       }
       #workspaces button.active {
         border-bottom: 2px solid @base0D;
+      }
+      /* AI-agent indicator: purple pill (the Claude accent) when an agent runs;
+         waybar auto-hides it when the module emits empty text. */
+      #custom-agent.running {
+        color: @base00;
+        background-color: @base0E;
+        padding: 0 12px;
+        margin: 0 6px;
       }
     '';
   };

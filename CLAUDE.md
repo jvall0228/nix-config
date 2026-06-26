@@ -12,7 +12,7 @@ A flake-based Nix configuration repo managing multiple machines. Targets a Think
 - `modules/nixos/` — NixOS-specific system modules (core, audio, nvidia, hyprland, power, stylix, greetd, agent-context).
 - `modules/darwin/` — Darwin-specific system modules (system.defaults, homebrew, stylix).
 - `home/` — home-manager config. `common/` is cross-platform, `linux/` is Linux-specific, `darwin/` is macOS-specific.
-- `home/linux/` — Hyprland, waybar, AGS, rofi, walker, hyprlock, wlogout, swaync, starship, wallpaper, capture, desktop apps.
+- `home/linux/` — Hyprland, waybar, AGS, rofi, walker, hyprlock, wlogout, swaync, starship, wallpaper, capture, agent-status daemon, desktop apps.
 - `home/darwin/` — Aerospace tiling WM, zsh config.
 - `home/common/` — Shell, git, neovim, kitty, tmux, fastfetch, dev-tools.
 - `apps/` — Shell scripts for common operations (run directly with `bash apps/<name>`).
@@ -48,6 +48,7 @@ A flake-based Nix configuration repo managing multiple machines. Targets a Think
 - System packages go in `modules/nixos/core.nix`. User packages go in `home/common/dev-tools.nix` or platform-specific home modules.
 - Stylix is split across three files: `modules/shared/stylix.nix` (base colors, monospace font), `modules/nixos/stylix.nix` (sans/serif/emoji fonts, cursor, `autoEnable = true`), `modules/darwin/stylix.nix` (`autoEnable = false` — HM-level targets like kitty/bat/btop still auto-theme). Use `stylix.targets.<name>.enable = false` to opt out specific apps. Don't set `qt.platformTheme` or manual color configs that conflict with Stylix.
 - AGS uses `configDir` with `symlinkJoin` to inject a generated `colors.css` from Stylix base16 colors into the config directory. See `home/linux/ags.nix`.
+- AI-agent status (which of claude/codex/gemini/opencode is running + latest messages) is published to `$XDG_RUNTIME_DIR/agent-status.json` by the `agent-status` daemon (`home/linux/agent-status.nix`), consumed by the lock screen and waybar. Query with the `agent-status` CLI. Detect agent processes by their wrapped comm (`.claude-wrapped` etc.), never `pgrep -x claude`. Full reference: `docs/agent-status.md`.
 - When a program lacks a home-manager module (e.g., Aerospace), write config directly via `home.file."<path>".text`.
 - `rofi-wayland` was merged into `rofi` in nixpkgs 25.11 — use `pkgs.rofi`.
 - `render.explicit_sync` was removed from Hyprland — explicit sync is always on.
