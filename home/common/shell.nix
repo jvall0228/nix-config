@@ -13,6 +13,7 @@
     gl = "git log --oneline --graph";
     claudex = "claude --dangerously-skip-permissions";
     claudemaxx = "claude --dangerously-skip-permissions --model 'opus[1m]' --effort high";
+    codexx = "codex --dangerously-bypass-approvals-and-sandbox";
   };
 
   home.sessionVariables = {
