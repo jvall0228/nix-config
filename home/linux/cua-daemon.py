@@ -33,6 +33,7 @@ import json
 import os
 import select
 import signal
+import secrets
 import socket
 import struct
 import subprocess
@@ -47,6 +48,7 @@ SOCK_PATH = os.path.join(RUNTIME, "cua.sock")
 REVOKE_FLAG = os.path.join(RUNTIME, "cua.lease.revoked")
 LOCKED_STATE = os.path.join(RUNTIME, "cua.locked-devices")
 YDOTOOL_SOCKET = os.path.join(RUNTIME, ".ydotool_socket")
+GRANT_TOKEN_PATH = os.path.join(RUNTIME, "cua.grant.token")
 
 LEASE_TIMEOUT_S = 300        # idle lease auto-expiry (5 min)
 MAX_SANDBOX_TARGETS = 2      # cap headless outputs on the Radeon 680M
@@ -190,6 +192,12 @@ class Daemon:
         # sandbox targets created at runtime: id -> dict
         self.sandbox = {}
         self._next_id = 1
+        # Secret the user grant path must present; set in main() (C1).
+        self.grant_token = None
+        # Track ydotoold liveness so we only treat a *transition* to dead as a
+        # crash/panic — a simply-absent ydotoold (never started, pre-relogin)
+        # must not spuriously clear a held sandbox lease.
+        self._ydotool_alive = self._ydotool_reachable()
 
     # ---- targets -----------------------------------------------------------
     def real_target(self):
@@ -199,16 +207,17 @@ class Daemon:
         return {"id": "real", "kind": "real", "output": out,
                 "workspace": None, "sandbox": False}
 
-    def all_targets(self):
-        targets = [self.real_target()]
-        # prune sandboxes whose output disappeared
+    def _prune_sandboxes(self):
+        # Drop sandboxes whose headless output disappeared (removed under us).
         live_outputs = {m.get("name") for m in (hypr_json("monitors all") or [])}
         for tid in list(self.sandbox):
             t = self.sandbox[tid]
             if t["kind"] == "headless" and t["output"] not in live_outputs:
                 del self.sandbox[tid]
-        targets.extend(self.sandbox.values())
-        return targets
+
+    def all_targets(self):
+        self._prune_sandboxes()
+        return [self.real_target(), *self.sandbox.values()]
 
     def resolve(self, tid):
         if tid in (None, "", "real"):
@@ -222,6 +231,18 @@ class Daemon:
             if m.get("name") == output:
                 return int(m.get("x", 0)), int(m.get("y", 0))
         return 0, 0
+
+    def output_scale(self, output):
+        # grim writes the PHYSICAL (scaled) buffer; the compositor pointer space
+        # is LOGICAL. Clicks must divide PNG-pixel coords by scale (H6 — this
+        # host runs scale 2, so without this clicks land at 2x offset).
+        for m in (hypr_json("monitors all") or []):
+            if m.get("name") == output:
+                try:
+                    return float(m.get("scale", 1.0)) or 1.0
+                except (TypeError, ValueError):
+                    return 1.0
+        return 1.0
 
     # ---- lockout (best-effort, R15) ----------------------------------------
     # We disable the POINTER devices only, never the keyboards. Disabling the
@@ -274,19 +295,25 @@ class Daemon:
             "locked": locked,
             "since": iso(now),
             "expiresAt": iso(now + LEASE_TIMEOUT_S),
+            "expiresEpoch": now + LEASE_TIMEOUT_S,   # numeric, DST-safe (M5)
         }
         if locked:
             self.lock_input()
 
-    def _end_lease(self, restore_focus=True):
-        if self.lease and self.lease.get("locked"):
-            self.unlock_input()
+    def _end_lease(self, promote=False):
+        # Always attempt unlock (idempotent; no-op if nothing was locked) so a
+        # panic with no lease still re-enables devices.
+        self.unlock_input()
         self.lease = None
         try:
             os.remove(REVOKE_FLAG)
         except OSError:
             pass
-        self._promote_queue()
+        # Promote the next waiter ONLY on voluntary release/expiry — never on
+        # panic/revoke/shutdown/vanished-output, where the user wants the seat
+        # genuinely free (M2).
+        if promote:
+            self._promote_queue()
 
     def _promote_queue(self):
         while self.queue and self.lease is None:
@@ -325,24 +352,37 @@ class Daemon:
 
     def _bump(self):
         if self.lease:
-            self.lease["expiresAt"] = iso(time.time() + LEASE_TIMEOUT_S)
+            self.lease["expiresEpoch"] = time.time() + LEASE_TIMEOUT_S
+            self.lease["expiresAt"] = iso(self.lease["expiresEpoch"])
+
+    def _is_user(self, agent_name, req):
+        # A request counts as the user ONLY if the peer is not an agent AND it
+        # carries the grant token the daemon wrote at startup. Fail-CLOSED: a
+        # /proc read failure or pid-reuse that yields agent_name=None can't be
+        # mistaken for the user (C1). Within one UID this is still cooperative —
+        # a same-UID process can read the token file. See docs/cua.md.
+        return agent_name is None and req.get("token") == self.grant_token
 
     def v_acquire(self, req, agent_name):
         agent = agent_name or req.get("agent") or "unknown"
         target = self.resolve(req.get("target"))
         if target is None:
             return err("unknown target", "UNKNOWN_TARGET")
+        # real always needs a standing grant — even to queue (M4: don't hand out
+        # a phantom queue slot _promote_queue would skip forever).
+        grant = None
+        if not target["sandbox"]:
+            grant = self.grants.get(agent)
+            if not (grant and grant["target"] == "real"):
+                return err("real desktop requires a grant (push-to-grant)", "NEEDS_GRANT")
         if self.lease is not None:
             if self.lease["holder"] == agent and self.lease["target"] == target["id"]:
                 return ok(lease=self.lease)
             self.queue.append({"agent": agent, "target": target["id"]})
             return ok(queued=True, position=len(self.queue))
         if not target["sandbox"]:
-            g = self.grants.get(agent)
-            if not (g and g["target"] == "real"):
-                return err("real desktop requires a grant (push-to-grant)", "NEEDS_GRANT")
             self.grants.pop(agent, None)
-            self._start_lease(agent, target, "granted", g.get("lock", False))
+            self._start_lease(agent, target, "granted", grant.get("lock", False))
         else:
             self._start_lease(agent, target, "acquired", False)
         return ok(lease=self.lease)
@@ -351,36 +391,46 @@ class Daemon:
         e = self._require_holder(agent_name)
         if e:
             return e
-        self._end_lease()
+        self._end_lease(promote=True)   # voluntary -> next waiter may take it
         return ok(released=True)
 
     def v_grant(self, req, agent_name):
-        # User authority only: an agent peer may not grant the real desktop.
-        if agent_name is not None and req.get("target", "real") == "real":
+        if agent_name is not None:
             return err("agents cannot grant the real desktop", "FORBIDDEN")
+        if not self._is_user(agent_name, req):
+            return err("grant requires the user grant token", "NEEDS_AUTH")
         target = req.get("target", "real")
         agent = req.get("agent")
         if not agent:
-            return err("grant requires --agent", "BAD_ARGS")
+            return err("grant requires <agent>", "BAD_ARGS")
         self.grants[agent] = {"target": target, "lock": bool(req.get("lock")),
                               "ts": iso(time.time())}
         return ok(granted={"agent": agent, "target": target, "lock": bool(req.get("lock"))})
 
     def v_revoke(self, req, agent_name):
-        agent = req.get("agent")
-        if agent:
-            self.grants.pop(agent, None)
-        if self.lease and (agent is None or self.lease["holder"] == agent):
-            self.restore_focus(self._saved_focus)
+        # An agent may revoke only its OWN active lease. Clearing grants or
+        # another holder's lease requires the user grant token (fail-closed).
+        if agent_name is not None:
+            if self.lease and self.lease["holder"] == agent_name:
+                self._end_lease()
+                return ok(revoked=True)
+            return err("agents may only revoke their own lease", "FORBIDDEN")
+        if not self._is_user(agent_name, req):
+            return err("revoke requires the user grant token", "NEEDS_AUTH")
+        target_agent = req.get("agent")
+        if target_agent:
+            self.grants.pop(target_agent, None)
+        if self.lease and (target_agent is None or self.lease["holder"] == target_agent):
             self._end_lease()
         return ok(revoked=True)
 
     def v_panic(self, req, agent_name):
-        run(["systemctl", "--user", "kill", "-s", "KILL", "ydotoold.service"])
-        if self.lease:
-            self._end_lease()
-        else:
-            self.unlock_input()
+        # stop (not kill): Restart=always would revive a killed injector within
+        # ~1s, possibly before the lease clears. Stop keeps it down; restart only
+        # AFTER the seat is released.
+        run(["systemctl", "--user", "stop", "ydotoold.service"])
+        self._end_lease()   # unlocks devices; per-action restore already ran (H3)
+        run(["systemctl", "--user", "start", "ydotoold.service"])
         return ok(panicked=True)
 
     def v_see(self, req, agent_name):
@@ -390,8 +440,13 @@ class Daemon:
         target = self.resolve(req.get("target"))
         if target is None:
             return err("unknown target", "UNKNOWN_TARGET")
-        out_path = req.get("out") or os.path.join(
-            RUNTIME, f"cua-see-{target['id']}.png")
+        # Confine --out to RUNTIME by basename only. v_see needs no lease, so an
+        # unvalidated caller path would be an unprivileged arbitrary-file-write
+        # primitive (H1): `cua see --out /home/.../.bashrc` would overwrite it.
+        req_out = req.get("out")
+        out_path = os.path.join(
+            RUNTIME, os.path.basename(req_out) if req_out
+            else f"cua-see-{target['id']}.png")
         region = req.get("region")
         if region:
             rc, _, e = run(["grim", "-g", region, out_path], timeout=10)
@@ -399,9 +454,16 @@ class Daemon:
             rc, _, e = run(["grim", "-o", target["output"], out_path], timeout=10)
         if rc != 0:
             return err(f"grim failed: {e}", "CAPTURE_FAILED")
-        return ok(path=out_path, output=target["output"])
+        # Emit scale so the agent can map PNG (physical) pixels to click coords.
+        return ok(path=out_path, output=target["output"],
+                  scale=self.output_scale(target["output"]))
 
     def _act_target(self, req, agent_name):
+        # Synchronous panic guard: if the revoke flag is set, refuse to inject
+        # even before the ~1s tick clears the lease (H5 — closes the window where
+        # `type` could still fire after the user hit panic).
+        if os.path.exists(REVOKE_FLAG):
+            return err("seat revoked", "REVOKED"), None
         e = self._require_holder(agent_name)
         if e:
             return e, None
@@ -412,19 +474,31 @@ class Daemon:
             return err("can only act on the held target", "WRONG_TARGET"), None
         return None, target
 
+    def _juggle(self, target):
+        # Focus-juggle (save -> focus target -> inject -> restore) only for
+        # OFF-screen targets. The real desktop is the focused output already;
+        # juggling there reverts the click's own focus so a following `type`
+        # lands in the wrong window (H2).
+        return target["id"] != "real"
+
     def v_click(self, req, agent_name):
         e, target = self._act_target(req, agent_name)
         if e:
             return e
-        saved = self.save_focus()
-        self.focus_target(target)
+        juggle = self._juggle(target)
+        saved = self.save_focus() if juggle else None
+        if juggle:
+            self.focus_target(target)
         if "x" in req and "y" in req:
             ox, oy = self.output_offset(target["output"])
-            run(["ydotool", "mousemove", "--absolute", "-x",
-                 str(int(req["x"]) + ox), "-y", str(int(req["y"]) + oy)])
+            scale = self.output_scale(target["output"])
+            gx = int(int(req["x"]) / scale) + ox
+            gy = int(int(req["y"]) / scale) + oy
+            run(["ydotool", "mousemove", "--absolute", "-x", str(gx), "-y", str(gy)])
         code = CLICK_CODES.get(req.get("button", "left"), "0xC0")
         rc = run(["ydotool", "click", code])[0]
-        self.restore_focus(saved)
+        if juggle:
+            self.restore_focus(saved)
         self._bump()
         return ok(clicked=(rc == 0))
 
@@ -433,13 +507,15 @@ class Daemon:
         if e:
             return e
         text = req.get("text", "")
-        saved = self.save_focus()
-        self.focus_target(target)
-        # Prefer wtype (Wayland virtual keyboard, no uinput); ydotool fallback.
-        rc = run(["wtype", "--", text], timeout=15)[0]
-        if rc != 0:
-            rc = run(["ydotool", "type", "--key-delay", "12", "--", text], timeout=15)[0]
-        self.restore_focus(saved)
+        juggle = self._juggle(target)
+        saved = self.save_focus() if juggle else None
+        if juggle:
+            self.focus_target(target)
+        # ydotool only — the single chokepoint panic kills. wtype is a SEPARATE
+        # virtual keyboard a panic would NOT stop, breaking the panic guarantee.
+        rc = run(["ydotool", "type", "--key-delay", "12", "--", text], timeout=15)[0]
+        if juggle:
+            self.restore_focus(saved)
         self._bump()
         return ok(typed=(rc == 0))
 
@@ -450,10 +526,13 @@ class Daemon:
         n = int(req.get("amount", 3))
         if req.get("dir") == "up":
             n = -n
-        saved = self.save_focus()
-        self.focus_target(target)
+        juggle = self._juggle(target)
+        saved = self.save_focus() if juggle else None
+        if juggle:
+            self.focus_target(target)
         rc = run(["ydotool", "mousemove", "--wheel", "-x", "0", "-y", str(n)])[0]
-        self.restore_focus(saved)
+        if juggle:
+            self.restore_focus(saved)
         self._bump()
         return ok(scrolled=(rc == 0))
 
@@ -464,34 +543,37 @@ class Daemon:
         chord = req.get("chord", "").split()
         if not chord:
             return err("key requires a chord (e.g. '29:1 46:1 46:0 29:0')", "BAD_ARGS")
-        saved = self.save_focus()
-        self.focus_target(target)
+        juggle = self._juggle(target)
+        saved = self.save_focus() if juggle else None
+        if juggle:
+            self.focus_target(target)
         rc = run(["ydotool", "key", *chord])[0]
-        self.restore_focus(saved)
+        if juggle:
+            self.restore_focus(saved)
         self._bump()
         return ok(keyed=(rc == 0))
 
     def v_target_new(self, req, agent_name):
+        # Workspace targets are dropped from v1: a workspace shares the real
+        # output, so `grim -o` would capture the user's visible screen (privacy
+        # leak) and focusing it would switch the user's view (H7). Headless
+        # outputs are the correct isolation primitive.
+        if req.get("workspace"):
+            return err("workspace targets are not implemented; use --headless", "DEFERRED")
         if len(self.sandbox) >= MAX_SANDBOX_TARGETS:
             return err(f"sandbox target cap reached ({MAX_SANDBOX_TARGETS})", "AT_CAP")
         tid = f"sandbox-{self._next_id}"
         self._next_id += 1
-        if req.get("workspace"):
-            wsname = f"cua-{tid}"
-            self.sandbox[tid] = {"id": tid, "kind": "workspace",
-                                 "output": self.real_target()["output"],
-                                 "workspace": f"name:{wsname}", "sandbox": True}
-        else:
-            before = {m.get("name") for m in (hypr_json("monitors all") or [])}
-            run(["hyprctl", "output", "create", "headless"])
-            time.sleep(0.3)
-            after = {m.get("name") for m in (hypr_json("monitors all") or [])}
-            new = sorted(after - before)
-            if not new:
-                return err("headless output was not created", "SPAWN_FAILED")
-            output = new[0]
-            self.sandbox[tid] = {"id": tid, "kind": "headless", "output": output,
-                                 "workspace": None, "sandbox": True}
+        before = {m.get("name") for m in (hypr_json("monitors all") or [])}
+        run(["hyprctl", "output", "create", "headless"])
+        time.sleep(0.3)
+        after = {m.get("name") for m in (hypr_json("monitors all") or [])}
+        new = sorted(after - before)
+        if not new:
+            return err("headless output was not created", "SPAWN_FAILED")
+        output = new[0]
+        self.sandbox[tid] = {"id": tid, "kind": "headless", "output": output,
+                             "workspace": None, "sandbox": True}
         if req.get("spawn"):
             saved = self.save_focus()
             self.focus_target(self.sandbox[tid])
@@ -524,21 +606,20 @@ class Daemon:
         return saved
 
     def focus_target(self, target):
-        # Move keyboard/pointer focus to the target's output without switching
-        # the user's *visible* workspace (headless lives off-screen). For a
-        # workspace target, focus its workspace silently.
+        # Move focus to the target's (off-screen headless) output. Headless
+        # targets only — the real desktop never juggles focus (see _juggle).
         if target.get("output"):
             hypr_dispatch("focusmonitor", target["output"])
-        if target.get("kind") == "workspace" and target.get("workspace"):
-            hypr_dispatch("workspace", target["workspace"])
 
     def restore_focus(self, saved):
-        if not saved:
-            return
-        if saved.get("monitor"):
-            hypr_dispatch("focusmonitor", saved["monitor"])
-        if saved.get("window"):
-            hypr_dispatch("focuswindow", f"address:{saved['window']}")
+        if saved:
+            if saved.get("monitor"):
+                hypr_dispatch("focusmonitor", saved["monitor"])
+            if saved.get("window"):
+                hypr_dispatch("focuswindow", f"address:{saved['window']}")
+        # Clear the snapshot so lease-end paths can't later re-restore stale
+        # focus and yank the user back to a window they have since left (H3).
+        self._saved_focus = None
 
     # ---- status publish ----------------------------------------------------
     def snapshot(self):
@@ -558,27 +639,43 @@ class Daemon:
         if not self.lease:
             return True
         t = self.resolve(self.lease["target"])
-        return bool(t and t["sandbox"])
+        # A vanished target must NOT read as "real" — that would falsely raise
+        # the driving alarm and leave a stuck lease (M1).
+        if t is None:
+            return True
+        return bool(t["sandbox"])
+
+    def _ydotool_reachable(self):
+        # A SIGKILLed ydotoold leaves a STALE socket file, so file-existence is
+        # not liveness (M3). Ask systemd — authoritative and doesn't poke the
+        # injector.
+        return run(["systemctl", "--user", "is-active", "--quiet",
+                    "ydotoold.service"])[0] == 0
 
     # ---- per-tick maintenance ----------------------------------------------
     def tick(self):
-        # honor an out-of-band panic/revoke (cua-panic.sh touches this)
+        # out-of-band panic/revoke (cua-panic.sh touches this). No focus restore
+        # here — the acting verb already restored and cleared the snapshot (H3).
         if os.path.exists(REVOKE_FLAG):
-            if self.lease:
-                self.restore_focus(self._saved_focus)
             self._end_lease()
-        # ydotoold died (e.g. panic) -> force-clear an active lease
-        if self.lease and not os.path.exists(YDOTOOL_SOCKET):
-            self.restore_focus(self._saved_focus)
+            # cua-panic.sh stopped ydotoold so Restart=always couldn't revive it
+            # before the lease cleared; now that it has, bring the injector back.
+            run(["systemctl", "--user", "start", "ydotoold.service"])
+        # ydotoold dying *while we hold the seat* -> force-clear, on a live->dead
+        # transition only (an absent-but-never-started ydotoold doesn't clear).
+        cur_alive = self._ydotool_reachable()
+        if self.lease and self._ydotool_alive and not cur_alive:
             self._end_lease()
-        # expire idle lease
-        if self.lease:
-            try:
-                if time.time() > iso_to_epoch(self.lease["expiresAt"]):
-                    self.restore_focus(self._saved_focus)
-                    self._end_lease()
-            except Exception:  # noqa: BLE001
-                pass
+        self._ydotool_alive = cur_alive
+        # lease target vanished (e.g. headless output removed under us) -> clear
+        # so the holder isn't stuck and 'driving' can't false-alarm (M1). Prune
+        # first so detection is same-tick, not deferred to the next snapshot().
+        self._prune_sandboxes()
+        if self.lease and self.resolve(self.lease["target"]) is None:
+            self._end_lease()
+        # idle expiry — numeric epoch, DST/NTP-safe (M5).
+        if self.lease and time.time() > self.lease.get("expiresEpoch", 0):
+            self._end_lease()
 
 
 # ── small helpers ────────────────────────────────────────────────────────────
@@ -613,6 +710,19 @@ def atomic_write(path, obj):
 def main():
     discover_env()
     daemon = Daemon()
+    # Mint the user grant token (0600). The user grant path (CLI / keybind, same
+    # UID) reads it; agents are rejected by identity regardless. Fail-closed so a
+    # /proc-read failure can't be mistaken for the user (C1).
+    daemon.grant_token = secrets.token_hex(16)
+    try:
+        fd = os.open(GRANT_TOKEN_PATH, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(daemon.grant_token)
+    except OSError as e:
+        log(f"could not write grant token: {e}")
+    # Clear any device lockout left behind by a prior crash (so a wedged-then-
+    # restarted daemon never leaves the user's pointer disabled — H4).
+    daemon.unlock_input()
 
     if os.path.exists(SOCK_PATH):
         try:
@@ -625,13 +735,14 @@ def main():
     srv.listen(8)
 
     def shutdown(*_):
-        if daemon.lease:
-            daemon.restore_focus(daemon._saved_focus)
-            daemon._end_lease()
-        try:
-            os.remove(SOCK_PATH)
-        except OSError:
-            pass
+        # Unlock devices + clear lease; do NOT promote the queue (M2) or restore
+        # stale focus (H3) on the way out.
+        daemon._end_lease()
+        for p in (SOCK_PATH, GRANT_TOKEN_PATH):
+            try:
+                os.remove(p)
+            except OSError:
+                pass
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, shutdown)
@@ -645,7 +756,9 @@ def main():
             if srv in r:
                 conn, _ = srv.accept()
                 try:
-                    conn.settimeout(5)
+                    # Short deadline: a same-UID client that connects and stalls
+                    # must not block the broker's tick (lease expiry, panic) for long.
+                    conn.settimeout(2)
                     data = b""
                     while b"\n" not in data:
                         chunk = conn.recv(4096)
@@ -663,6 +776,12 @@ def main():
                             agent = agent_for_pid(peer_pid(conn))
                             resp = daemon.handle(req, agent)
                         conn.sendall((json.dumps(resp) + "\n").encode())
+                        # republish immediately so reads (target list, status)
+                        # reflect this mutation without waiting for the 1s tick
+                        try:
+                            atomic_write(STATUS_PATH, daemon.snapshot())
+                        except Exception:  # noqa: BLE001
+                            pass
                 except Exception as e:  # noqa: BLE001
                     log(f"connection error: {e}")
                 finally:

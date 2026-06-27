@@ -54,11 +54,13 @@ A **target** is what an agent sees/acts on. Every call names one (default `real`
 |--------|---------|
 | `real` | The user's physical desktop (focused output). Push-to-grant only. |
 | `sandbox-N` | A spawned off-screen Hyprland headless output (`cua target new --headless`). Self-serve. |
-| `sandbox-N` (workspace) | A named workspace sandbox (`cua target new --workspace`). Self-serve. |
 
 `sandbox=true` is the predicate that authorizes self-serve `acquire`; `real`
 never self-serves. Headless outputs are capped (default 2) to bound GPU/memory
-cost on the Radeon 680M.
+cost on the Radeon 680M. (Workspace-style sandbox targets are **not** supported:
+a workspace shares the real output, so `grim -o` would capture the user's actual
+screen — a privacy leak — and focusing it would switch the visible view.
+Headless outputs are the only correct isolation primitive.)
 
 ## The seat lease (serialization + control model)
 
@@ -84,23 +86,56 @@ There is one seat. The daemon grants it as a lease; only the holder may inject.
 
 ### Safety (real desktop)
 
-- **Push-to-grant.** Only the *user* (a non-agent peer, enforced via socket
-  `SO_PEERCRED` + `/proc` walk) or the keybind may `grant`/`revoke` the real
-  desktop. An agent calling `grant real` is rejected.
+- **Push-to-grant (cooperative).** The daemon rejects a `grant`/`revoke real`
+  from a peer it identifies as an agent (socket `SO_PEERCRED` + `/proc` walk),
+  and an agent calling `acquire real` without a standing grant gets
+  `NEEDS_GRANT`. This stops *well-behaved* agents from grabbing your seat by
+  accident. It is **not a security boundary** — see "Trust boundary" below.
 - **Panic — hard guarantee (R14).** `Super+Shift+Escape` (a `bindl`, fires even
-  while locked) or `cua panic` runs `cua-panic.sh`: `systemctl --user kill -s
-  KILL ydotoold.service`. Killing ydotoold destroys the uinput device — the
-  kernel synthesizes key/button releases (no stuck modifiers) and in-flight
-  injection dies instantly. The daemon notices (revoke flag / dead socket) and
-  clears the lease + restores focus on its next tick.
+  while locked) or `cua panic` runs `cua-panic.sh`: `systemctl --user stop
+  ydotoold.service` (stop, not kill — `Restart=always` would otherwise revive a
+  *killed* injector within ~1s, possibly before the lease clears). Stopping
+  ydotoold destroys the uinput device — the kernel synthesizes key/button
+  releases (no stuck modifiers) and in-flight injection dies. A synchronous
+  revoke-flag guard also refuses any further injection immediately; the daemon
+  then clears the lease and restarts ydotoold for next time. Typing goes through
+  `ydotool` (not `wtype`) precisely so this one kill covers it.
 - **Lockout (`--lock`, R15) — best-effort, pointer only.** When granted with
   `--lock`, the daemon disables the **pointer** devices
   (`hyprctl keyword device[..]:enabled false`) so the user's mouse can't fight
   the agent. **The keyboard is deliberately left enabled** so the panic key can
-  never be deadlocked. Full keyboard parking (preventing the user typing into
-  the agent's target) is deferred to the optional EVIOCGRAB+chord helper, which
-  can swallow physical keys while still watching for the panic chord. So today,
-  `--lock` parks the pointer; it does not fully isolate the keyboard.
+  never be deadlocked. Full keyboard parking is deferred to the optional
+  EVIOCGRAB+chord helper. `cua-panic.sh` re-enables the disabled devices
+  *independently* (not relying on the daemon being healthy), and the daemon
+  clears any stale lockout on startup. So today, `--lock` parks the pointer; it
+  does not fully isolate the keyboard.
+
+### Trust boundary (read this)
+
+Push-to-grant is a **cooperative control within one Unix user, not a security
+boundary.** All four agents run as the same user (`javels`); they share the
+ydotool socket and `input`-group access to `/dev/uinput`. That means a
+*determined* same-UID process can bypass the broker entirely:
+
+- It can call `ydotool` (or open `/dev/uinput`) directly, injecting input with
+  no `cua grant` at all.
+- It can read the grant-token file the daemon writes (mode 0600, same UID) and
+  present it, or detach a helper so the daemon's `/proc` walk no longer
+  classifies it as an agent.
+
+What the broker *does* guarantee: a **well-behaved** agent that uses `cua` cannot
+take the real seat unannounced, the authority check is **fail-closed** (a
+`/proc`-read failure or pid-reuse can't be mistaken for the user — it now
+requires the grant token, not merely "unidentifiable"), and **panic always works
+on the broker's own injector**. That is the right model for *trusted* agents (your
+own AI tools) where the goal is preventing accidental cursor hijacking.
+
+**Real boundary (not built):** to enforce grant against an adversarial same-UID
+agent, the injector must live under a *different principal* — run `ydotoold`
+(and a thin injection helper) as a dedicated system user/group with the socket
+private to it, so agents-as-`javels` can reach uinput *only* through the broker.
+That also removes the `input`-group-for-the-user keylogging tradeoff below. It is
+a meaningful re-architecture, deferred until the threat model needs it.
 
 ## CLI
 
@@ -123,7 +158,7 @@ cua key    [TARGET] -- <keycode:state ...>      # e.g. 29:1 46:1 46:0 29:0 = Ctr
 
 # TARGETS
 cua target list
-cua target new [--headless|--workspace] [--spawn CMD]
+cua target new [--headless] [--spawn CMD]
 cua target rm <ID>
 cua target select <ID>                # set this shell's default target
 
@@ -163,7 +198,7 @@ agent-status consumer.
 | R1 single `cua` CLI, no MCP | `home/linux/cua.nix` |
 | R2 user daemon + runtime JSON | `cua-daemon.py`, mirrors agent-status |
 | R3 full verb set | CLI dispatcher |
-| R4–R6 targets (real/headless/workspace) | daemon `Daemon.resolve`/`all_targets` |
+| R4–R6 targets (real / headless sandbox) | daemon `Daemon.resolve`/`all_targets` |
 | R7 `see` via grim | `v_see` (`grim -o <output>`) |
 | R8 perception needs no lease | `v_see` (no holder check) |
 | R9 inject via ydotool | `v_click`/`v_type`/`v_scroll`/`v_key` |

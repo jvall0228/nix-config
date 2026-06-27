@@ -49,20 +49,17 @@ let
 
       default_target() { cat "$deftarget" 2>/dev/null || echo real; }
 
-      # take the first non-flag token as TARGET, leave the rest in REST[]
+      # TARGET is an optional LEADING positional ONLY — never a value mid-args,
+      # so `cua click --x 100` can't mistake "100" for the target. Everything
+      # after goes to REST[] for the per-verb option loop.
       TARGET=""; REST=()
       grab_target() {
-        TARGET=""
-        REST=()
-        local seen_target=0
-        while [ "$#" -gt 0 ]; do
-          case "$1" in
-            --) shift; REST+=("$@"); return 0 ;;
-            -*) REST+=("$1") ;;
-            *) if [ "$seen_target" -eq 0 ]; then TARGET="$1"; seen_target=1; else REST+=("$1"); fi ;;
-          esac
-          shift
-        done
+        TARGET=""; REST=()
+        case "''${1:-}" in
+          ""|-*) : ;;                 # leading flag/empty -> no target
+          *) TARGET="$1"; shift ;;     # leading word -> target
+        esac
+        REST=("$@")
       }
 
       cmd="''${1:-}"; shift || true
@@ -99,9 +96,10 @@ let
           i=0
           while [ "$i" -lt "''${#REST[@]}" ]; do
             case "''${REST[$i]}" in
-              --region) i=$((i+1)); region="''${REST[$i]}" ;;
-              --out|-o)  i=$((i+1)); out="''${REST[$i]}" ;;
+              --region) i=$((i+1)); region="''${REST[$i]:-}"; [ -n "$region" ] || die "--region needs a value (e.g. \"0,0 200x200\")" ;;
+              --out|-o)  i=$((i+1)); out="''${REST[$i]:-}";    [ -n "$out" ]    || die "--out needs a value" ;;
               --tree)    tree=true ;;
+              *) die "unknown see option: ''${REST[$i]}" ;;
             esac
             i=$((i+1))
           done
@@ -120,15 +118,17 @@ let
           agent="$1"; shift
           gt="real"; lock=false
           while [ "$#" -gt 0 ]; do
-            case "$1" in --lock) lock=true ;; -*) ;; *) gt="$1" ;; esac; shift
+            case "$1" in --lock) lock=true ;; -*) : ;; *) gt="$1" ;; esac; shift
           done
-          send "$(jq -nc --arg a "$agent" --arg t "$gt" --argjson l "$lock" '{verb:"grant",agent:$a,target:$t,lock:$l}')" ;;
+          tok=$(cat "$runtime/cua.grant.token" 2>/dev/null || true)
+          send "$(jq -nc --arg a "$agent" --arg t "$gt" --argjson l "$lock" --arg k "$tok" '{verb:"grant",agent:$a,target:$t,lock:$l,token:$k}')" ;;
 
         revoke)
+          tok=$(cat "$runtime/cua.grant.token" 2>/dev/null || true)
           if [ "$#" -ge 1 ]; then
-            send "$(jq -nc --arg a "$1" '{verb:"revoke",agent:$a}')"
+            send "$(jq -nc --arg a "$1" --arg k "$tok" '{verb:"revoke",agent:$a,token:$k}')"
           else
-            send "$(jq -nc '{verb:"revoke"}')"
+            send "$(jq -nc --arg k "$tok" '{verb:"revoke",token:$k}')"
           fi ;;
 
         click)
@@ -137,24 +137,35 @@ let
           i=0
           while [ "$i" -lt "''${#REST[@]}" ]; do
             case "''${REST[$i]}" in
-              --button|-b) i=$((i+1)); button="''${REST[$i]}" ;;
-              --x) i=$((i+1)); x="''${REST[$i]}" ;;
-              --y) i=$((i+1)); y="''${REST[$i]}" ;;
+              --button|-b) i=$((i+1)); button="''${REST[$i]:-}"; [ -n "$button" ] || die "--button needs a value" ;;
+              --x) i=$((i+1)); x="''${REST[$i]:-}"; [ -n "$x" ] || die "--x needs a value" ;;
+              --y) i=$((i+1)); y="''${REST[$i]:-}"; [ -n "$y" ] || die "--y needs a value" ;;
+              *) die "unknown click option: ''${REST[$i]}" ;;
             esac
             i=$((i+1))
           done
           req=$(jq -nc --arg b "$button" '{verb:"click",button:$b}')
           [ -n "$TARGET" ] && req=$(printf '%s' "$req" | jq -c --arg t "$TARGET" '. + {target:$t}')
-          if [ -n "$x" ] && [ -n "$y" ]; then
+          if [ -n "$x" ] || [ -n "$y" ]; then
+            { [ -n "$x" ] && [ -n "$y" ]; } || die "click needs BOTH --x and --y, or neither"
             req=$(printf '%s' "$req" | jq -c --argjson x "$x" --argjson y "$y" '. + {x:$x,y:$y}')
           fi
           send "$req" ;;
 
         type)
-          grab_target "$@"
-          text="''${REST[*]}"
+          # TARGET (optional) appears before a literal '--'; everything after is
+          # the text. Avoids grab_target stealing a text word as the target.
+          tgt=""; collected=0; text_parts=()
+          for a in "$@"; do
+            if [ "$collected" -eq 1 ]; then text_parts+=("$a")
+            elif [ "$a" = "--" ]; then collected=1
+            else case "$a" in -*) : ;; *) [ -z "$tgt" ] && tgt="$a" ;; esac
+            fi
+          done
+          [ "$collected" -eq 1 ] || die "usage: cua type [target] -- <text>"
+          text="''${text_parts[*]:-}"
           req=$(jq -nc --arg s "$text" '{verb:"type",text:$s}')
-          [ -n "$TARGET" ] && req=$(printf '%s' "$req" | jq -c --arg t "$TARGET" '. + {target:$t}')
+          [ -n "$tgt" ] && req=$(printf '%s' "$req" | jq -c --arg t "$tgt" '. + {target:$t}')
           send "$req" ;;
 
         scroll)
@@ -163,8 +174,9 @@ let
           i=0
           while [ "$i" -lt "''${#REST[@]}" ]; do
             case "''${REST[$i]}" in
-              --dir) i=$((i+1)); dir="''${REST[$i]}" ;;
-              --amount|-n) i=$((i+1)); amount="''${REST[$i]}" ;;
+              --dir) i=$((i+1)); dir="''${REST[$i]:-}"; [ -n "$dir" ] || die "--dir needs a value" ;;
+              --amount|-n) i=$((i+1)); amount="''${REST[$i]:-}"; [ -n "$amount" ] || die "--amount needs a value" ;;
+              *) die "unknown scroll option: ''${REST[$i]}" ;;
             esac
             i=$((i+1))
           done
@@ -173,11 +185,17 @@ let
           send "$req" ;;
 
         key)
-          grab_target "$@"
-          chord="''${REST[*]}"
+          tgt=""; collected=0; chord_parts=()
+          for a in "$@"; do
+            if [ "$collected" -eq 1 ]; then chord_parts+=("$a")
+            elif [ "$a" = "--" ]; then collected=1
+            else case "$a" in -*) : ;; *) [ -z "$tgt" ] && tgt="$a" ;; esac
+            fi
+          done
+          chord="''${chord_parts[*]:-}"
           [ -n "$chord" ] || die "usage: cua key [target] -- <keycode:state ...>"
           req=$(jq -nc --arg c "$chord" '{verb:"key",chord:$c}')
-          [ -n "$TARGET" ] && req=$(printf '%s' "$req" | jq -c --arg t "$TARGET" '. + {target:$t}')
+          [ -n "$tgt" ] && req=$(printf '%s' "$req" | jq -c --arg t "$tgt" '. + {target:$t}')
           send "$req" ;;
 
         target)
@@ -187,17 +205,17 @@ let
               [ -s "$status" ] || die "no status file — is the cua daemon running?"
               jq -r '.targets[] | "\(.id)\t[\(.kind)]\t\(.output)\(if .sandbox then "\tsandbox" else "" end)"' "$status" ;;
             new)
-              ws=false; spawn=""
+              spawn=""
               while [ "$#" -gt 0 ]; do
                 case "$1" in
-                  --workspace) ws=true ;;
-                  --headless) ws=false ;;
+                  --workspace) die "workspace targets are not implemented; use --headless" ;;
+                  --headless) : ;;                       # the only (default) kind
                   --spawn) shift; spawn="''${1:-}" ;;
                 esac
                 shift || true
               done
-              send "$(jq -nc --argjson ws "$ws" --arg sp "$spawn" \
-                      '{verb:"target_new"} + (if $ws then {workspace:true} else {} end) + (if $sp!="" then {spawn:$sp} else {} end)')" ;;
+              send "$(jq -nc --arg sp "$spawn" \
+                      '{verb:"target_new"} + (if $sp!="" then {spawn:$sp} else {} end)')" ;;
             rm)
               [ "$#" -ge 1 ] || die "usage: cua target rm <id>"
               send "$(jq -nc --arg t "$1" '{verb:"target_rm",target:$t}')" ;;
@@ -214,7 +232,9 @@ let
 cua — computer-use-agent control for Hyprland (harness-agnostic)
 
 PERCEPTION (no lease needed)
-  cua see [TARGET] [--region X,Y WxH] [--out FILE] [--tree]
+  cua see [TARGET] [--region "X,Y WxH"] [--out NAME] [--tree]
+          (--out is a filename, written under $XDG_RUNTIME_DIR; click coords are
+           PNG pixels — the reply's "scale" maps them to the pointer)
 
 SEAT / CONTROL
   cua acquire <TARGET>          take the seat (sandbox: self-serve; real: needs grant)
@@ -231,7 +251,7 @@ ACTION (must hold the lease)
 
 TARGETS
   cua target list
-  cua target new [--headless|--workspace] [--spawn CMD]
+  cua target new [--headless] [--spawn CMD]
   cua target rm <ID>
   cua target select <ID>
 

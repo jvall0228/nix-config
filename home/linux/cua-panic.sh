@@ -14,11 +14,23 @@
 set -u
 runtime="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-# 1) authoritative kill of the injector (whole cgroup, name-independent)
-systemctl --user kill -s KILL ydotoold.service 2>/dev/null || true
+# 1) STOP (not kill) the injector. A kill would be revived by Restart=always
+#    within ~1s, possibly before the lease clears; an explicit stop keeps it
+#    down until the cua daemon restarts it after releasing the seat.
+systemctl --user stop ydotoold.service 2>/dev/null || true
 # 2) belt-and-suspenders if ydotoold ever runs outside systemd
 pkill -9 -f ydotoold 2>/dev/null || true
-# 3) tell the cua daemon to stand down (cooperative: clears lease, unlocks input)
+# 3) Independently re-enable any devices the lockout disabled — do NOT depend on
+#    the daemon being healthy to hand the user's input back.
+state="$runtime/cua.locked-devices"
+if [ -f "$state" ] && command -v hyprctl >/dev/null 2>&1; then
+  while IFS= read -r dev; do
+    [ -n "$dev" ] || continue
+    hyprctl keyword "device[$dev]:enabled" true >/dev/null 2>&1 || true
+  done < "$state"
+  rm -f "$state" 2>/dev/null || true
+fi
+# 4) tell the cua daemon to stand down (clears lease, restarts the injector)
 : > "$runtime/cua.lease.revoked" 2>/dev/null || true
 
 notify-send -u critical "cua" "panic — seat returned to you" 2>/dev/null || true
