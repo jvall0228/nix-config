@@ -3,6 +3,7 @@
   imports = [
     ./desktop.nix
     ./agent-status.nix
+    ./cua.nix
     ./hyprlock.nix
     ./weather.nix
     ./wlogout.nix

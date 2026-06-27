@@ -51,6 +51,10 @@ in
       "$mod" = "SUPER";
 
       exec-once = [
+        # Make WAYLAND_DISPLAY/HYPRLAND_INSTANCE_SIGNATURE visible to systemd
+        # user services (the cua daemon's grim/hyprctl). The daemon also
+        # self-discovers these, so this is belt-and-suspenders for restarts.
+        "systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
         "waybar"
         "ags run -g 3"
         "wallpaper-init"
@@ -110,6 +114,10 @@ in
       ];
 
       bindl = [
+        # CUA panic (R14): hard-stop all agent input, seat back to you. `bindl`
+        # so it fires even while locked; on the keyboard, which the cua lockout
+        # deliberately never disables so this key can't be deadlocked.
+        "$mod SHIFT, Escape, exec, cua-panic"
         # Cycle the lock screen's JRPG box through running agent sessions (works while
         # locked). bracketright = next, bracketleft = previous.
         "$mod, bracketright, exec, ${clawd-session-cycle} next"

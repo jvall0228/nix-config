@@ -82,6 +82,7 @@
           ./modules/nixos/audio.nix
           ./modules/nixos/nvidia.nix
           ./modules/nixos/hyprland.nix
+          ./modules/nixos/cua.nix
           ./modules/nixos/power.nix
           ./modules/nixos/stylix.nix
           ./modules/nixos/greetd.nix

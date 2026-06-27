@@ -52,6 +52,26 @@ let
       *)    echo '{"text":""}' ;;
     esac
   '';
+
+  # CUA DRIVING indicator. Red pill while an agent holds the real-desktop seat
+  # (R13); empty text (auto-hidden) otherwise. Polled at 1s — unlike the agent
+  # pill, "an agent is driving my cursor" is latency-relevant. Reads the cua
+  # daemon's `.driving` flag; the flag flips to false on panic/release, so the
+  # pill clears within a tick (AE3).
+  cuaScript = pkgs.writeShellScript "waybar-cua" ''
+    status="$XDG_RUNTIME_DIR/cua-status.json"
+    out=$(${pkgs.jq}/bin/jq -c '
+      if (.driving == true) then {
+        text: ("󰷢  " + (.lease.holder // "agent") + (if .lease.locked then "  " else "" end)),
+        class: (if .lease.locked then "locked" else "driving" end),
+        tooltip: ("driving \(.lease.target) — \(.lease.kind)")
+      } else { text: "" } end
+    ' "$status" 2>/dev/null)
+    case "$out" in
+      "{"*) printf '%s\n' "$out" ;;
+      *)    echo '{"text":""}' ;;
+    esac
+  '';
 in
 {
   programs.waybar = {
@@ -64,6 +84,7 @@ in
         modules-left = [ "hyprland/workspaces" "hyprland/window" ];
         modules-center = [ "clock" ];
         modules-right = [
+          "custom/cua"
           "custom/agent"
           "mpris"
           "idle_inhibitor"
@@ -135,6 +156,14 @@ in
           format = "{}";
           tooltip = true;
         };
+        "custom/cua" = {
+          exec = "${cuaScript}";
+          return-type = "json";
+          interval = 1;
+          format = "{}";
+          tooltip = true;
+          max-length = 30;
+        };
         "custom/agent" = {
           exec = "${agentScript}";
           return-type = "json";
@@ -187,6 +216,16 @@ in
       #custom-agent.running {
         color: @base00;
         background-color: @base0E;
+        padding: 0 12px;
+        margin: 0 6px;
+      }
+      /* CUA DRIVING indicator: red alarm pill (base08) while an agent drives the
+         real desktop; auto-hidden otherwise. `.locked` carries a lock glyph in
+         its text to signal that your physical input is parked. */
+      #custom-cua.driving,
+      #custom-cua.locked {
+        color: @base00;
+        background-color: @base08;
         padding: 0 12px;
         margin: 0 6px;
       }
