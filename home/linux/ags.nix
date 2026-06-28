@@ -44,4 +44,30 @@ in {
       powerprofiles
     ];
   };
+
+  # Supervise AGS as a user service so its popups self-heal if it crashes. It was
+  # previously an unsupervised Hyprland exec-once, so a single crash left the
+  # bar's dashboard/calendar/network/etc. silently gone until the next login.
+  # Software-rendered (LIBGL_ALWAYS_SOFTWARE): the GTK layer-shell popups never
+  # paint when their GL context lands on the runtime-suspended NVIDIA dGPU on
+  # this hybrid GPU; llvmpipe sidesteps it and is negligible for these popups.
+  # Scoped to AGS, not the global Hyprland env, so other apps keep hw accel.
+  systemd.user.services.ags = {
+    Unit = {
+      Description = "AGS desktop shell (bar popups: dashboard, calendar, network, …)";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      Type = "simple";
+      Environment = [
+        "LIBGL_ALWAYS_SOFTWARE=1"
+        "GALLIUM_DRIVER=llvmpipe"
+      ];
+      ExecStart = "${config.home.profileDirectory}/bin/ags run -g 3";
+      Restart = "on-failure";
+      RestartSec = 2;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 }

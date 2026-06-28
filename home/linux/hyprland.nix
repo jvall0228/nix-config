@@ -56,7 +56,9 @@ in
         # self-discovers these, so this is belt-and-suspenders for restarts.
         "systemctl --user import-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
         "waybar"
-        "ags run -g 3"
+        # AGS runs as a supervised systemd user service (home/linux/ags.nix) so
+        # its popups self-heal on crash; it's software-rendered there to work
+        # around the hybrid-GPU layer-shell paint issue.
         "wallpaper-init"
         "wallpaper-battery-monitor"
         "/run/current-system/sw/bin/polkit-kde-agent-1"

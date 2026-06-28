@@ -9,7 +9,9 @@ const cpuUsage = createPoll("0", 3000, ["sh", "-c", "top -bn1 | grep 'Cpu(s)' | 
 const ramUsage = createPoll("0", 3000, ["sh", "-c", "free | awk '/Mem:/ {printf \"%.0f\", $3/$2*100}'"]);
 const gpuUsage = createPoll("0", 5000, ["sh", "-c", "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
 const diskUsage = createPoll("0", 60000, ["sh", "-c", "df / | awk 'NR==2 {print $5}' | tr -d '%'"]);
-const cpuTemp = createPoll("0", 3000, ["sh", "-c", "cat /sys/class/hwmon/hwmon3/temp1_input | awk '{printf \"%.0f\", $1/1000}'"]);
+// k10temp via the stable PCI path + hwmon* glob — the bare hwmonN index is not
+// stable across reboots, which silently zeroed the CPU temp here.
+const cpuTemp = createPoll("0", 3000, ["sh", "-c", "cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input 2>/dev/null | head -1 | awk '{printf \"%.0f\", $1/1000}'"]);
 const gpuTemp = createPoll("0", 5000, ["sh", "-c", "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0"]);
 const uptime = createPoll("", 60000, ["sh", "-c", "uptime -p | sed 's/up //'"]);
 const [hostname] = createState(shSync("hostname"));
@@ -301,7 +303,7 @@ function Dashboard() {
         vexpand
         onClick={(self) => { self.get_toplevel().visible = false; }}
       >
-        <box hexpand vexpand halign={Gtk.Align.START} valign={Gtk.Align.START}>
+        <box hexpand vexpand halign={Gtk.Align.END} valign={Gtk.Align.START}>
           <eventbox onClick={() => true}>
             <box class="dashboard-popup" vertical spacing={12}>
               <ProfileCard />

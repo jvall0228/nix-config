@@ -72,6 +72,21 @@ let
       *)    echo '{"text":""}' ;;
     esac
   '';
+
+  # Live hover tooltip for the system button. The inline cpu/mem/temp/disk
+  # readouts moved into the dashboard, so this restores an at-a-glance peek
+  # without re-cluttering the bar. Deliberately uses only cheap /proc + sysfs
+  # reads (no nvidia-smi) so it never wakes the runtime-suspended dGPU. The icon
+  # itself stays in the module's static `format`; the script only fills tooltip.
+  systemBtnScript = pkgs.writeShellScript "waybar-system" ''
+    load=$(${pkgs.coreutils}/bin/cut -d' ' -f1 /proc/loadavg)
+    mem=$(${pkgs.procps}/bin/free | ${pkgs.gawk}/bin/awk '/Mem:/ {printf "%.0f", $3/$2*100}')
+    temp=$(${pkgs.coreutils}/bin/cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input 2>/dev/null \
+            | ${pkgs.coreutils}/bin/head -1 | ${pkgs.gawk}/bin/awk '{printf "%.0f", $1/1000}')
+    disk=$(${pkgs.coreutils}/bin/df / | ${pkgs.gawk}/bin/awk 'NR==2 {gsub("%","",$5); print $5}')
+    printf '{"text":"","tooltip":"Load %s   RAM %s%%   CPU %s°C   Disk %s%%"}\n' \
+      "''${load:-?}" "''${mem:-?}" "''${temp:-?}" "''${disk:-?}"
+  '';
 in
 {
   programs.waybar = {
@@ -94,13 +109,23 @@ in
           "network"
           "bluetooth"
           "battery"
-          "cpu"
-          "memory"
-          "temperature"
-          "custom/gpu"
-          "disk"
+          "custom/system"
           "tray"
         ];
+
+        # Single system-info button — opens the AGS dashboard popup (system
+        # stats, power, quick settings, session actions); same target as the
+        # Super+A keybind. The CPU/RAM/temp/GPU/disk readouts live in that panel
+        # now instead of cluttering the bar inline. (Those module definitions are
+        # retained below but unreferenced, so they don't render or poll.)
+        "custom/system" = {
+          exec = "${systemBtnScript}";
+          return-type = "json";
+          interval = 5;
+          format = "󰓅";
+          on-click = "ags request toggle dashboard";
+          tooltip = true;
+        };
 
         "hyprland/workspaces" = {
           format = "{icon}";
@@ -113,38 +138,43 @@ in
         };
         battery = {
           format = "{icon}  {capacity}%";
-          format-icons = [ "" "" "" "" "" ];
+          format-icons = [ "󰁺" "󰁼" "󰁾" "󰂀" "󰁹" ];
           states = { warning = 30; critical = 15; };
         };
-        cpu = { format = "  {usage}%"; interval = 5; };
-        memory = { format = "  {}%"; interval = 5; };
+        cpu = { format = "󰻠  {usage}%"; interval = 5; };
+        memory = { format = "󰍛  {}%"; interval = 5; };
         temperature = {
-          hwmon-path-abs = "/sys/devices/pci0000:00/0000:00:18.3";
+          # k10temp (AMD CPU, Tctl). hwmon-path-abs must point at the *hwmon*
+          # folder; waybar globs the hwmonN subdir + input-filename. The PCI
+          # function 0000:00:18.3 is stable across boots, so this survives the
+          # hwmonN renumbering. (Previously missing the /hwmon segment, which
+          # left the CPU-temp module silently empty.)
+          hwmon-path-abs = "/sys/devices/pci0000:00/0000:00:18.3/hwmon";
           input-filename = "temp1_input";
           critical-threshold = 80;
-          format = "  {temperatureC}°C";
-          format-critical = "  {temperatureC}°C";
+          format = "󰔏  {temperatureC}°C";
+          format-critical = "󰔏  {temperatureC}°C";
         };
         backlight = {
           format = "{icon}  {percent}%";
-          format-icons = [ "" "" "" "" "" "" "" "" "" ];
+          format-icons = [ "󰃛" "󰃜" "󰃝" "󰃞" "󰃟" "󰃠" "󰃡" ];
           on-scroll-up = "brightnessctl set 5%+";
           on-scroll-down = "brightnessctl set 5%-";
         };
         idle_inhibitor = {
           format = "{icon}";
           format-icons = {
-            activated = "";
-            deactivated = "";
+            activated = "󰅶";
+            deactivated = "󰒲";
           };
         };
         disk = {
-          format = "  {percentage_used}%";
+          format = "󰋊  {percentage_used}%";
           path = "/";
           interval = 60;
         };
         "custom/gpu" = {
-          exec = "nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits | awk -F', ' '{printf \"  %s%% %s°C\", $1, $2}'";
+          exec = "nvidia-smi --query-gpu=utilization.gpu,temperature.gpu --format=csv,noheader,nounits | awk -F', ' '{printf \"󰢮  %s%%  󰔏 %s°C\", $1, $2}'";
           interval = 5;
           format = "{}";
           tooltip = false;
@@ -177,28 +207,28 @@ in
         };
         pulseaudio = {
           format = "{icon}  {volume}%";
-          format-muted = "  muted";
-          format-icons.default = [ "" "" "" ];
+          format-muted = "󰝟  muted";
+          format-icons.default = [ "󰕿" "󰖀" "󰕾" ];
           on-click = "ags request toggle audiomixer";
           on-middle-click = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
           on-scroll-up = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+";
           on-scroll-down = "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-";
         };
         network = {
-          format-wifi = "  {essid}";
-          format-ethernet = "  {ifname}";
-          format-disconnected = "  disconnected";
+          format-wifi = "󰖩  {essid}";
+          format-ethernet = "󰈀  {ifname}";
+          format-disconnected = "󰖪  disconnected";
           on-click = "ags request toggle network";
           on-middle-click = "sh -c 'nmcli radio wifi $(nmcli radio wifi | grep -q enabled && echo off || echo on)'";
         };
         bluetooth = {
-          format = " {status}";
+          format = "󰂯  {status}";
           on-click = "ags request toggle bluetooth";
           on-middle-click = "bluetoothctl power toggle";
         };
         mpris = {
           format = "{player_icon}  {title}";
-          player-icons.default = "";
+          player-icons.default = "󰎈";
           on-click = "ags request toggle media";
         };
         tray = { spacing = 10; };
@@ -228,6 +258,17 @@ in
         background-color: @base08;
         padding: 0 12px;
         margin: 0 6px;
+      }
+      /* System-info button: a single glyph that toggles the AGS dashboard popup.
+         Styled like the other clickable bar items (plain icon) with a @base02
+         hover affordance, matching the AGS button convention. */
+      #custom-system {
+        padding: 0 10px;
+        margin: 0 2px;
+      }
+      #custom-system:hover {
+        background-color: @base02;
+        border-radius: 8px;
       }
     '';
   };
