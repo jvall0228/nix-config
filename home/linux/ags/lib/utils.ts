@@ -17,7 +17,16 @@ export function sh(cmd: string): Promise<string> {
 }
 
 export function shSync(cmd: string): string {
-  return exec(["sh", "-c", cmd]);
+  // exec() throws on a non-zero exit. shSync is used at module-load time for
+  // state probes (e.g. `systemctl is-active hypridle`, which exits 3 when the
+  // unit is stopped), so a throw here crashes the ENTIRE shell into a restart
+  // loop. Fail soft: return best-effort output instead of throwing. Callers
+  // .trim()/compare the result, so an empty string degrades gracefully.
+  try {
+    return exec(["sh", "-c", cmd]);
+  } catch (e) {
+    return typeof e === "string" ? e : String((e as any)?.stdout ?? "");
+  }
 }
 
 export function readFile(path: string): string {

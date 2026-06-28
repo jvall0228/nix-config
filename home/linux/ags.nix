@@ -1,6 +1,15 @@
 { pkgs, inputs, config, ... }:
 let
   colors = config.lib.stylix.colors;
+  # Pre-blurred wallpaper for the agent-mode lock curtain (AgentLock.tsx), matched
+  # to hyprlock's background (blur_size 6 / passes 3, brightness 0.7) so the curtain
+  # reads identical. Generated once at build time and injected into the AGS config
+  # dir; the CSS references it as a relative url (see style.css .agentlock-bg).
+  wallpaperBlur = pkgs.runCommand "agentlock-wallpaper-blur.png" { } ''
+    ${pkgs.imagemagick}/bin/convert ${../../assets/wallpaper.png} \
+      -blur 0x20 -modulate 70 png:$out
+  '';
+
   colorsCss = pkgs.writeText "colors.css" ''
     @define-color base00 #${colors.base00};
     @define-color base01 #${colors.base01};
@@ -30,6 +39,7 @@ in {
       postBuild = ''
         rm -f $out/colors.css
         cp ${colorsCss} $out/colors.css
+        cp ${wallpaperBlur} $out/agentlock-wallpaper-blur.png
       '';
     };
     extraPackages = with inputs.astal.packages.${pkgs.stdenv.hostPlatform.system}; [

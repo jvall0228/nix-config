@@ -462,3 +462,25 @@ scrollbar slider:hover {
   letter-spacing: 1px;
   margin: 8px 0 4px 0;
 }
+
+/* ── Agent-mode lock curtain (R17) — replicates the hyprlock scene so agent-mode
+   looks identical to a real lock. Software-rendered via the AGS service. ────── */
+.agentlock-bg {
+  background-image: url("agentlock-wallpaper-blur.png");
+  background-size: cover;
+  background-position: center;
+}
+.agentlock-scene {
+  margin-top: 340px;
+}
+.agentlock-time {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 64px;
+  color: @base08;
+}
+.agentlock-date {
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 20px;
+  color: @base05;
+  margin-top: 6px;
+}

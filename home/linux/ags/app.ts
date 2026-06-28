@@ -10,6 +10,7 @@ import MediaPlayer from "./widgets/Media";
 import Dashboard from "./widgets/Dashboard";
 import Notifications from "./widgets/Notifications";
 import OSD, { showOSD } from "./widgets/OSD";
+import AgentLock, { showAgentLock, hideAgentLock } from "./widgets/AgentLock";
 
 const configDir = `${GLib.get_user_config_dir()}/ags`;
 
@@ -24,6 +25,7 @@ app.start({
     Dashboard();
     Notifications();
     OSD();
+    AgentLock();
   },
 
   requestHandler(argv: string[], response: (msg: string) => void) {
@@ -45,6 +47,20 @@ app.start({
           response(`osd ${target}`);
         } else {
           response("error: missing osd type");
+        }
+        break;
+
+      // Agent-mode lock curtain (R17): cua daemon shows/hides this in place of
+      // the kitty curtain. Explicit show/hide (not toggle) so the daemon owns it.
+      case "agentlock":
+        if (target === "show") {
+          showAgentLock();
+          response("agentlock shown");
+        } else if (target === "hide") {
+          hideAgentLock();
+          response("agentlock hidden");
+        } else {
+          response("usage: agentlock show|hide");
         }
         break;
 
