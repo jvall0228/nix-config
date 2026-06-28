@@ -19,8 +19,16 @@ let
   # design — see cua-panic.sh. Bound to a key in hyprland.nix via `exec, cua-panic`.
   cua-panic = pkgs.writeShellApplication {
     name = "cua-panic";
-    runtimeInputs = [ pkgs.systemd pkgs.procps pkgs.coreutils pkgs.libnotify ];
+    runtimeInputs = [ pkgs.systemd pkgs.procps pkgs.coreutils pkgs.libnotify pkgs.hyprland ];
     text = builtins.readFile ./cua-panic.sh;
+  };
+
+  # The agent-mode lock curtain (R17). Spawned fullscreen by the daemon on the
+  # physical output; a pure-display status board (no stdin). See cua-curtain.sh.
+  cua-curtain = pkgs.writeShellApplication {
+    name = "cua-curtain";
+    runtimeInputs = [ pkgs.jq pkgs.coreutils pkgs.ncurses ];
+    text = builtins.readFile ./cua-curtain.sh;
   };
 
   # `cua` — the harness-agnostic CLI every agent shells out to. Read-only verbs
@@ -227,6 +235,21 @@ let
 
         panic) exec cua-panic ;;
 
+        agent-mode|agentmode|agent)
+          # Agent-mode lock (R17): stage the real desktop off-screen behind a
+          # curtain so agents keep full CUA while the physical screen looks locked.
+          sub="''${1:-status}"; shift || true
+          case "$sub" in
+            on|lock|start)    send "$(jq -nc '{verb:"agentmode",on:true}')" ;;
+            off|unlock|stop)  send "$(jq -nc '{verb:"agentmode",on:false}')" ;;
+            status)
+              [ -s "$status" ] || die "no status file — is the cua daemon running?"
+              jq -r 'if (.agentMode.active==true)
+                     then "agent-mode: ON — desktop staged on \(.agentMode.stage) since \(.agentMode.since)"
+                     else "agent-mode: off" end' "$status" ;;
+            *) die "usage: cua agent-mode on|off|status" ;;
+          esac ;;
+
         -h|--help|"")
           cat <<'EOF'
 cua — computer-use-agent control for Hyprland (harness-agnostic)
@@ -242,6 +265,12 @@ SEAT / CONTROL
   cua grant <AGENT> [TARGET] [--lock]   USER mints push-to-grant for the real desktop
   cua revoke [AGENT]           USER revokes a grant / active lease now
   cua panic                    hard-stop all agent input, seat back to you
+
+AGENT-MODE LOCK (USER)
+  cua agent-mode on            lock the screen but keep agents driving your real
+                               desktop (staged off-screen behind a curtain)
+  cua agent-mode off           unlock — restore the desktop (Super+Shift+U)
+  cua agent-mode status        is agent-mode active?
 
 ACTION (must hold the lease)
   cua click  [TARGET] [--button left|right|middle] [--x N --y N]
@@ -267,7 +296,7 @@ EOF
   };
 in
 {
-  home.packages = [ cli cua-panic pkgs.ydotool ];
+  home.packages = [ cli cua-panic cua-curtain pkgs.ydotool ];
 
   # ── ydotoold: the input-injection backend (user-level) ──────────────────────
   # User service (not programs.ydotool's root system service) to match the

@@ -119,6 +119,14 @@ fighting over the single cursor or hijacking the screen the user is working on."
 - R16. Self-serve leases (acquire without an explicit grant) are permitted only
   on sandbox targets (spawned workspaces / headless outputs), never the real
   desktop.
+- R17. Agent-mode lock: a user-invoked lock screen that, unlike `hyprlock`'s
+  `ext-session-lock`, keeps the real desktop live and capturable so background
+  agents retain full CUA (see + act) while a passerby sees only a curtain. The
+  user's workspaces are migrated to an off-screen headless stage and a curtain
+  holds the physical output; `real` retargets to the stage. Entered/left by the
+  user only (agents cannot toggle it); panic exits it; crash recovery restores
+  the desktop on daemon restart. Explicitly a cooperative privacy lock, not an
+  authenticated security boundary (same trust model as push-to-grant).
 
 ## Key Flows
 

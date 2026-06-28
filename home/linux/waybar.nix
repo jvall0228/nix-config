@@ -61,7 +61,11 @@ let
   cuaScript = pkgs.writeShellScript "waybar-cua" ''
     status="$XDG_RUNTIME_DIR/cua-status.json"
     out=$(${pkgs.jq}/bin/jq -c '
-      if (.driving == true) then {
+      if (.agentMode.active == true) then {
+        text: ("󰍁  AGENT MODE" + (if .driving then "  󰷢 " + (.lease.holder // "agent") else "" end)),
+        class: "agentlock",
+        tooltip: ("agent-mode lock — desktop staged on \(.agentMode.stage); agents retain full computer-use access" + (if .driving then "\n▶ \(.lease.holder) driving \(.lease.target)" else "" end))
+      } elif (.driving == true) then {
         text: ("󰷢  " + (.lease.holder // "agent") + (if .lease.locked then "  " else "" end)),
         class: (if .lease.locked then "locked" else "driving" end),
         tooltip: ("driving \(.lease.target) — \(.lease.kind)")
@@ -256,6 +260,15 @@ in
       #custom-cua.locked {
         color: @base00;
         background-color: @base08;
+        padding: 0 12px;
+        margin: 0 6px;
+      }
+      /* AGENT-MODE LOCK indicator (R17): amber pill (base0A) while the screen is
+         "locked" but agents still drive your real desktop off-screen. Distinct
+         from the red driving alarm so the porous-lock state reads at a glance. */
+      #custom-cua.agentlock {
+        color: @base00;
+        background-color: @base0A;
         padding: 0 12px;
         margin: 0 6px;
       }

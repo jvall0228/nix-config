@@ -49,6 +49,14 @@ REVOKE_FLAG = os.path.join(RUNTIME, "cua.lease.revoked")
 LOCKED_STATE = os.path.join(RUNTIME, "cua.locked-devices")
 YDOTOOL_SOCKET = os.path.join(RUNTIME, ".ydotool_socket")
 GRANT_TOKEN_PATH = os.path.join(RUNTIME, "cua.grant.token")
+# Agent-mode lock (R17): the user's workspaces are migrated to an off-screen
+# headless "stage" while a curtain holds the physical output, so agents keep
+# full CUA (see+act) on the real desktop while a passerby sees only the lock.
+# This record lets a restarted daemon recover (move workspaces back, drop stage)
+# rather than leave the user stranded behind a curtain.
+AGENT_MODE_STATE = os.path.join(RUNTIME, "cua.agent-mode")
+CURTAIN_CLASS = "cua-curtain"
+SUBMAP_AGENTLOCK = "agentlock"
 
 LEASE_TIMEOUT_S = 300        # idle lease auto-expiry (5 min)
 MAX_SANDBOX_TARGETS = 2      # cap headless outputs on the Radeon 680M
@@ -192,6 +200,9 @@ class Daemon:
         # sandbox targets created at runtime: id -> dict
         self.sandbox = {}
         self._next_id = 1
+        # agent-mode lock: None, or dict(stage, primary, workspaces, restoreWs,
+        # since). When set, the "real" target lives on the off-screen stage.
+        self.agent_mode = None
         # Secret the user grant path must present; set in main() (C1).
         self.grant_token = None
         # Track ydotoold liveness so we only treat a *transition* to dead as a
@@ -201,6 +212,15 @@ class Daemon:
 
     # ---- targets -----------------------------------------------------------
     def real_target(self):
+        # In agent-mode the real desktop has been migrated to the off-screen
+        # stage; "real" then resolves there so see/act capture and inject the
+        # user's actual windows (not the curtain on the physical output). It is
+        # still push-to-grant and still flagged sandbox=False (an agent acting
+        # here IS driving the real desktop, just staged).
+        if self.agent_mode:
+            return {"id": "real", "kind": "real",
+                    "output": self.agent_mode["stage"],
+                    "workspace": None, "sandbox": False, "staged": True}
         mons = hypr_json("monitors") or []
         focused = next((m for m in mons if m.get("focused")), mons[0] if mons else None)
         out = focused.get("name") if focused else "eDP-1"
@@ -331,6 +351,171 @@ class Daemon:
             else:
                 self._start_lease(head["agent"], target, "acquired", False)
 
+    # ---- agent-mode lock (R17, output-swap) --------------------------------
+    # A cooperative privacy lock that, unlike hyprlock's ext-session-lock, keeps
+    # the real desktop live and capturable: the user's workspaces are moved to an
+    # off-screen headless "stage" and a curtain holds the physical output. Agents
+    # then drive "real" (now the stage) with the existing headless-target path —
+    # no flicker, full see+act. NOT a security boundary; see docs/cua.md.
+    def _physical_monitors(self):
+        return [m for m in (hypr_json("monitors all") or [])
+                if not str(m.get("name", "")).startswith("HEADLESS")]
+
+    def _agentmode_status(self):
+        if not self.agent_mode:
+            return {"active": False}
+        return {"active": True, "stage": self.agent_mode["stage"],
+                "primary": self.agent_mode["primary"],
+                "since": self.agent_mode["since"]}
+
+    def _persist_agentmode(self):
+        try:
+            atomic_write(AGENT_MODE_STATE, self.agent_mode)
+        except OSError:
+            pass
+
+    def v_agentmode(self, req, agent_name):
+        # Entering/leaving agent-mode is a USER action (it parks the user's own
+        # input and stages their desktop). Reject agents — same fail-closed
+        # identity rule as grant/revoke, so a compromised agent can't lock the
+        # user out or, worse, lift the curtain on itself.
+        if agent_name is not None:
+            return err("agents cannot toggle agent-mode", "FORBIDDEN")
+        if req.get("on"):
+            return self._agentmode_enter()
+        return self._agentmode_exit()
+
+    def _agentmode_enter(self):
+        if self.agent_mode:
+            return ok(agentMode=self._agentmode_status(), already=True)
+        # Agent-mode is an ALTERNATIVE to hyprlock, not an overlay on it. A real
+        # ext-session-lock blanks every output from grim — including the stage —
+        # so entering under hyprlock would be half-broken (agents blinded).
+        # Refuse with a clear message; the user unlocks first, then locks here.
+        if run(["hyprctl", "locked"])[1].strip().lower() == "true":
+            return err("hyprlock is active — unlock it first; agent-mode replaces "
+                       "hyprlock (it can't capture under an ext-session-lock)",
+                       "ALREADY_LOCKED")
+        mons = self._physical_monitors()
+        if not mons:
+            return err("no physical monitor to lock", "NO_MONITOR")
+        prim = next((m for m in mons if m.get("focused")), mons[0])
+        pname = prim["name"]
+        # Stop hypridle so its idle timeout can't fire hyprlock mid-agent-mode and
+        # slap a real ext-session-lock over everything (which would blank the
+        # stage). Teardown restarts it. (Also pauses auto-dpms/dim — fine while
+        # the curtain owns the screen.)
+        run(["systemctl", "--user", "stop", "hypridle.service"])
+        # Snapshot what to migrate + restore BEFORE touching the layout.
+        restore_ws = (hypr_json("activeworkspace") or {}).get("id")
+        moved = [w["id"] for w in (hypr_json("workspaces") or [])
+                 if w.get("monitor") == pname and isinstance(w.get("id"), int)
+                 and w["id"] >= 0]
+        # 1. off-screen stage, matched to the physical geometry so PNG pixels and
+        #    click coords map 1:1 with the real output.
+        before = {m.get("name") for m in (hypr_json("monitors all") or [])}
+        run(["hyprctl", "output", "create", "headless"])
+        time.sleep(0.3)
+        after = {m.get("name") for m in (hypr_json("monitors all") or [])}
+        new = sorted(after - before)
+        if not new:
+            return err("agent-mode stage was not created", "SPAWN_FAILED")
+        stage = new[0]
+        w, h = int(prim.get("width", 1920)), int(prim.get("height", 1080))
+        try:
+            hz = int(round(float(prim.get("refreshRate", 60)) or 60))
+        except (TypeError, ValueError):
+            hz = 60
+        scale = prim.get("scale", 1.0)
+        run(["hyprctl", "keyword", "monitor", f"{stage},{w}x{h}@{hz},auto,{scale}"])
+        time.sleep(0.2)
+        # 2. migrate every physical-output workspace onto the stage.
+        for wid in moved:
+            run(["hyprctl", "dispatch", "moveworkspacetomonitor",
+                 f"{wid} {stage}"])
+        # 3. raise the curtain on the now-empty physical output, fullscreen.
+        run(["hyprctl", "dispatch", "focusmonitor", pname])
+        run(["hyprctl", "dispatch", "exec",
+             f"[fullscreen] kitty --class {CURTAIN_CLASS} -T 'AGENT MODE' cua-curtain"])
+        # 4. lock down human input: the agentlock submap kills every keybind but
+        #    panic/unlock; the pointer is parked. (Keyboard is never *disabled* —
+        #    the panic chord must always fire; the submap makes stray keys inert.)
+        run(["hyprctl", "dispatch", "submap", SUBMAP_AGENTLOCK])
+        self.lock_input()
+        # 5. record + persist for crash recovery.
+        self.agent_mode = {"stage": stage, "primary": pname,
+                           "workspaces": moved, "restoreWs": restore_ws,
+                           "since": iso(time.time())}
+        self._persist_agentmode()
+        log(f"agent-mode ON: staged {len(moved)} ws on {stage}, curtain on {pname}")
+        return ok(agentMode=self._agentmode_status())
+
+    def _agentmode_teardown(self, am):
+        # Idempotent restore of one agent-mode record. Order matters: release the
+        # input lockdown FIRST so a failure in a later step can never leave the
+        # user stuck behind a curtain with dead keybinds.
+        run(["hyprctl", "dispatch", "submap", "reset"])
+        self.unlock_input()
+        run(["hyprctl", "dispatch", "closewindow", f"class:{CURTAIN_CLASS}"])
+        live = {m.get("name") for m in (hypr_json("monitors all") or [])}
+        prim = am.get("primary")
+        # Move the user's workspaces back to the physical output, THEN drop the
+        # stage. (If the stage is already gone, Hyprland has auto-fallen the
+        # workspaces back to a live monitor — the move is then a harmless no-op.)
+        for wid in am.get("workspaces", []):
+            run(["hyprctl", "dispatch", "moveworkspacetomonitor",
+                 f"{wid} {prim}"])
+        if am.get("stage") in live:
+            run(["hyprctl", "output", "remove", am["stage"]])
+        if am.get("restoreWs") is not None:
+            run(["hyprctl", "dispatch", "workspace", str(am["restoreWs"])])
+        # Hand idle management back (auto-lock/dpms/dim) now that the desktop is
+        # the user's again. Always restart — covers exit, panic, and recovery.
+        run(["systemctl", "--user", "start", "hypridle.service"])
+
+    def _agentmode_exit(self):
+        am = self.agent_mode
+        if not am:
+            # No record, but still clear the lockdown primitives in case a stale
+            # submap/curtain lingered (defensive; cheap).
+            run(["hyprctl", "dispatch", "submap", "reset"])
+            return ok(agentMode={"active": False}, already=False)
+        # If an agent is mid-drive on the staged real desktop, end its lease so we
+        # don't yank the user's view back out from under a live injection.
+        if self.lease:
+            t = self.resolve(self.lease["target"])
+            if t and t.get("id") == "real":
+                self._end_lease()
+        self._agentmode_teardown(am)
+        self.agent_mode = None
+        try:
+            os.remove(AGENT_MODE_STATE)
+        except OSError:
+            pass
+        log("agent-mode OFF: desktop restored")
+        return ok(agentMode={"active": False})
+
+    def recover_agent_mode(self):
+        # Startup: tear down any agent-mode a crashed daemon left behind. The
+        # user must never boot into a stuck curtain with windows stranded on a
+        # removed headless output. Always reset the input lockdown; if a record
+        # exists, also migrate workspaces back and drop the stage.
+        try:
+            with open(AGENT_MODE_STATE) as f:
+                am = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            am = None
+        run(["hyprctl", "dispatch", "submap", "reset"])
+        run(["hyprctl", "dispatch", "closewindow", f"class:{CURTAIN_CLASS}"])
+        if am:
+            self._agentmode_teardown(am)
+            log("recovered stale agent-mode from a prior run")
+        self.agent_mode = None
+        try:
+            os.remove(AGENT_MODE_STATE)
+        except OSError:
+            pass
+
     # ---- verbs -------------------------------------------------------------
     def handle(self, req, agent_name):
         verb = req.get("verb")
@@ -430,6 +615,10 @@ class Daemon:
         # AFTER the seat is released.
         run(["systemctl", "--user", "stop", "ydotoold.service"])
         self._end_lease()   # unlocks devices; per-action restore already ran (H3)
+        # Panic is "give me back my computer": if agent-mode is up, also restore
+        # the desktop and drop the curtain so the user is never left locked out.
+        if self.agent_mode:
+            self._agentmode_exit()
         run(["systemctl", "--user", "start", "ydotoold.service"])
         return ok(panicked=True)
 
@@ -476,10 +665,14 @@ class Daemon:
 
     def _juggle(self, target):
         # Focus-juggle (save -> focus target -> inject -> restore) only for
-        # OFF-screen targets. The real desktop is the focused output already;
-        # juggling there reverts the click's own focus so a following `type`
-        # lands in the wrong window (H2).
-        return target["id"] != "real"
+        # OFF-screen targets. Normally the real desktop is the focused output
+        # already; juggling there reverts the click's own focus so a following
+        # `type` lands in the wrong window (H2). In agent-mode, though, "real"
+        # has been migrated to the off-screen stage, so it DOES need juggling
+        # (the curtain owns the physical output's focus otherwise).
+        if target["id"] == "real":
+            return self.agent_mode is not None
+        return True
 
     def v_click(self, req, agent_name):
         e, target = self._act_target(req, agent_name)
@@ -633,6 +826,7 @@ class Daemon:
             "queue": [q["agent"] for q in self.queue],
             "targets": self.all_targets(),
             "grants": {a: g["target"] for a, g in self.grants.items()},
+            "agentMode": self._agentmode_status(),
         }
 
     def resolve_is_sandbox(self):
@@ -658,6 +852,10 @@ class Daemon:
         # here — the acting verb already restored and cleared the snapshot (H3).
         if os.path.exists(REVOKE_FLAG):
             self._end_lease()
+            # Panic also exits agent-mode (the panic key sets this flag), so the
+            # user is never left behind a curtain after smashing panic.
+            if self.agent_mode:
+                self._agentmode_exit()
             # cua-panic.sh stopped ydotoold so Restart=always couldn't revive it
             # before the lease cleared; now that it has, bring the injector back.
             run(["systemctl", "--user", "start", "ydotoold.service"])
@@ -723,6 +921,9 @@ def main():
     # Clear any device lockout left behind by a prior crash (so a wedged-then-
     # restarted daemon never leaves the user's pointer disabled — H4).
     daemon.unlock_input()
+    # Likewise tear down any agent-mode a crash left up: never boot the user into
+    # a stuck curtain with windows stranded on a removed headless stage (R17).
+    daemon.recover_agent_mode()
 
     if os.path.exists(SOCK_PATH):
         try:
@@ -736,7 +937,10 @@ def main():
 
     def shutdown(*_):
         # Unlock devices + clear lease; do NOT promote the queue (M2) or restore
-        # stale focus (H3) on the way out.
+        # stale focus (H3) on the way out. Also exit agent-mode so a stop/restart
+        # (e.g. a rebuild) restores the desktop instead of stranding it staged.
+        if daemon.agent_mode:
+            daemon._agentmode_exit()
         daemon._end_lease()
         for p in (SOCK_PATH, GRANT_TOKEN_PATH):
             try:

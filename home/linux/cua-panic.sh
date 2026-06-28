@@ -30,7 +30,19 @@ if [ -f "$state" ] && command -v hyprctl >/dev/null 2>&1; then
   done < "$state"
   rm -f "$state" 2>/dev/null || true
 fi
-# 4) tell the cua daemon to stand down (clears lease, restarts the injector)
+# 4) Agent-mode lock (R17): independently lift the input lockdown so the panic
+#    chord restores the user's keyboard even if the daemon is dead — reset the
+#    submap (re-enables all normal keybinds) and drop the curtain so the physical
+#    screen is usable again. The daemon, on its next tick (or restart), migrates
+#    the staged workspaces back and removes the stage; we don't remove headless
+#    outputs here so a stray panic can't nuke unrelated sandbox targets.
+if command -v hyprctl >/dev/null 2>&1; then
+  hyprctl dispatch submap reset >/dev/null 2>&1 || true
+  hyprctl dispatch closewindow "class:cua-curtain" >/dev/null 2>&1 || true
+fi
+
+# 5) tell the cua daemon to stand down (clears lease, exits agent-mode, restarts
+#    the injector)
 : > "$runtime/cua.lease.revoked" 2>/dev/null || true
 
 notify-send -u critical "cua" "panic — seat returned to you" 2>/dev/null || true

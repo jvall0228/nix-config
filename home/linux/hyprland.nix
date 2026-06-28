@@ -82,6 +82,10 @@ in
         "$mod, V, togglefloating,"
         "$mod, M, exec, wlogout"
         "$mod SHIFT, L, exec, hyprlock"
+        # Agent-mode lock (R17): lock the screen but keep agents driving the real
+        # desktop (staged off-screen behind a curtain). Unlock with Super+Shift+U
+        # (a bind live inside the agentlock submap) or the panic chord.
+        "$mod CTRL, L, exec, cua agent-mode on"
         "$mod, W, exec, sh -c 'rofi -show wallpaper -modi \"wallpaper:wallpaper-menu\" -show-icons -theme-str \"listview { columns: 3; lines: 3; }\" -theme-str \"element-icon { size: 150px; }\"'"
         "$mod, N, exec, ags request toggle notifications"
         "$mod, A, exec, ags request toggle dashboard"
@@ -138,6 +142,15 @@ in
         ", XF86MonBrightnessDown, exec, sh -c 'brightnessctl set 5%- && ags request osd brightness'"
       ];
 
+      # Agent-mode lock curtain (R17): force the cua-curtain window fullscreen and
+      # chromeless so it cleanly covers the physical output while the desktop is
+      # staged off-screen.
+      windowrulev2 = [
+        "fullscreen, class:^(cua-curtain)$"
+        "noborder, class:^(cua-curtain)$"
+        "noanim, class:^(cua-curtain)$"
+      ];
+
       general = { gaps_in = 5; gaps_out = 10; border_size = 2; };
       input = { kb_layout = "us"; follow_mouse = 1; sensitivity = 0.5; touchpad.natural_scroll = true; };
 
@@ -164,5 +177,19 @@ in
       };
 
 };
+
+    # Agent-mode lock submap (R17). While active, EVERY normal keybind is gone —
+    # only the panic chord and graceful-unlock remain, so a passerby's keyboard
+    # is inert even though the keyboard device itself is never disabled (the
+    # panic chord must always be able to fire). The cua daemon enters this with
+    # `hyprctl dispatch submap agentlock` on lock and `submap reset` on unlock.
+    # Appended raw because submaps are positional and don't map to the settings
+    # attrset cleanly.
+    extraConfig = ''
+      submap = agentlock
+      bind = SUPER SHIFT, Escape, exec, cua-panic
+      bind = SUPER SHIFT, U, exec, cua agent-mode off
+      submap = reset
+    '';
   };
 }

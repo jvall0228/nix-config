@@ -137,6 +137,51 @@ private to it, so agents-as-`javels` can reach uinput *only* through the broker.
 That also removes the `input`-group-for-the-user keylogging tradeoff below. It is
 a meaningful re-architecture, deferred until the threat model needs it.
 
+## Agent-mode lock (R17)
+
+A lock screen that stays **porous to agents**. A normal `hyprlock`
+(`ext-session-lock-v1`) deliberately blanks every output from `grim` *and* routes
+all input to the lock surface — under it agents can neither see nor act. Agent-mode
+is a different lock that keeps the real desktop live:
+
+- **Enter:** `cua agent-mode on` (or `Super+Ctrl+L`). The daemon creates an
+  off-screen headless **stage** matched to the physical output's geometry+scale,
+  migrates every workspace on the physical output onto the stage, raises the
+  `cua-curtain` fullscreen on the now-empty physical output, parks the pointer,
+  and switches Hyprland into the `agentlock` submap (every keybind gone but panic
+  + unlock). `real` now resolves to the stage, so `cua see/click/type` drive the
+  user's actual windows through the existing off-screen-target path — **no
+  flicker, full see+act**.
+- **Exit:** `cua agent-mode off` (or `Super+Shift+U`), or **panic**
+  (`Super+Shift+Esc`). The submap resets, the curtain closes, workspaces migrate
+  back to the physical output, the stage is removed, and the original active
+  workspace is restored.
+- **Indication:** an amber `AGENT MODE` pill in waybar (`custom/cua`,
+  `.agentlock`) whenever it's active, carrying the driving holder if an agent is
+  mid-action.
+
+**Relationship to hyprlock / hypridle.** Agent-mode is an *alternative* to
+`hyprlock`, not a layer on top of it — a real `ext-session-lock` blanks every
+output (stage included), so `cua agent-mode on` **refuses while hyprlock is up**
+(`ALREADY_LOCKED`); unlock first, then lock here. While agent-mode is active the
+daemon **stops `hypridle`** so its idle timeout can't fire hyprlock and blank the
+stage mid-session; teardown (unlock/panic/recovery) restarts it.
+
+**Crash recovery.** The active stage/workspaces/primary are persisted to
+`$XDG_RUNTIME_DIR/cua.agent-mode`. On startup the daemon tears down any stale
+agent-mode (reset submap, kill curtain, migrate workspaces back, drop the stage)
+so a crash can never strand the user behind a curtain with windows on a removed
+output. `cua-panic.sh` independently resets the submap and closes the curtain, so
+the panic chord frees the keyboard even if the daemon is dead.
+
+**Not a security boundary.** Agent-mode is the same cooperative model as
+push-to-grant: it hides the desktop from a *passerby* (curtain + parked pointer +
+inert keybinds) and is the user's explicit choice to weaken the lock. It does not
+defend against a determined same-UID process (see "Trust boundary"). A passerby
+sees only the curtain; the lock is not authenticated like `hyprlock`, so use it
+where the laptop is physically trusted (you're driving agents remotely), not as a
+walk-away lock in a hostile space.
+
 ## CLI
 
 ```sh
@@ -149,6 +194,11 @@ cua release
 cua grant <AGENT> [TARGET] [--lock]   # USER mints push-to-grant for real
 cua revoke [AGENT]                    # USER revokes grant / active lease
 cua panic                             # hard-stop, seat back to user
+
+# AGENT-MODE LOCK (USER) — lock the screen, keep agents driving the real desktop
+cua agent-mode on                     # stage desktop off-screen, raise curtain
+cua agent-mode off                    # unlock, restore desktop (Super+Shift+U)
+cua agent-mode status
 
 # ACTION (must hold the lease)
 cua click  [TARGET] [--button left|right|middle] [--x N --y N]
@@ -183,7 +233,10 @@ daemon adds the target output's global offset before injecting.
   },
   "queue": ["codex"],                     // FIFO waiters
   "targets": [ { "id": "real", "kind": "real", "output": "eDP-1", "sandbox": false }, ... ],
-  "grants": { "claude": "real" }          // standing push-to-grant tokens
+  "grants": { "claude": "real" },         // standing push-to-grant tokens
+  "agentMode": {                          // R17 — agent-mode lock state
+    "active": true, "stage": "HEADLESS-2", "primary": "eDP-1", "since": "..."
+  }
 }
 ```
 
@@ -209,6 +262,7 @@ agent-status consumer.
 | R14 panic | `cua-panic.sh` + `Super+Shift+Escape` bindl |
 | R15 lockout (pointer, best-effort) | `lock_input`/`unlock_input` |
 | R16 self-serve only for sandboxes | `v_acquire` `sandbox` branch |
+| R17 agent-mode lock (porous lock) | daemon `v_agentmode`/`_agentmode_*`; `cua-curtain`; `agentlock` submap |
 
 ## Operating
 
