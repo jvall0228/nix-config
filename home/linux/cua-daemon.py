@@ -401,59 +401,94 @@ class Daemon:
             return err("no physical monitor to lock", "NO_MONITOR")
         prim = next((m for m in mons if m.get("focused")), mons[0])
         pname = prim["name"]
-        # Stop hypridle so its idle timeout can't fire hyprlock mid-agent-mode and
-        # slap a real ext-session-lock over everything (which would blank the
-        # stage). Teardown restarts it. (Also pauses auto-dpms/dim — fine while
-        # the curtain owns the screen.)
-        run(["systemctl", "--user", "stop", "hypridle.service"])
         # Snapshot what to migrate + restore BEFORE touching the layout.
         restore_ws = (hypr_json("activeworkspace") or {}).get("id")
         moved = [w["id"] for w in (hypr_json("workspaces") or [])
                  if w.get("monitor") == pname and isinstance(w.get("id"), int)
                  and w["id"] >= 0]
-        # 1. off-screen stage, matched to the physical geometry so PNG pixels and
-        #    click coords map 1:1 with the real output.
-        before = {m.get("name") for m in (hypr_json("monitors all") or [])}
-        run(["hyprctl", "output", "create", "headless"])
-        time.sleep(0.3)
-        after = {m.get("name") for m in (hypr_json("monitors all") or [])}
-        new = sorted(after - before)
-        if not new:
-            return err("agent-mode stage was not created", "SPAWN_FAILED")
-        stage = new[0]
-        w, h = int(prim.get("width", 1920)), int(prim.get("height", 1080))
+        # Stop hypridle so its idle timeout can't fire hyprlock mid-agent-mode and
+        # slap a real ext-session-lock over everything (which would blank the
+        # stage). Teardown restarts it. (Also pauses auto-dpms/dim — fine while
+        # the curtain owns the screen.)
+        run(["systemctl", "--user", "stop", "hypridle.service"])
+        # Everything past here is failure-atomic: any error (stage didn't spawn,
+        # a dispatch raised) rolls the whole thing back — restoring hypridle and
+        # the desktop — so a half-entered agent-mode never strands the user.
         try:
-            hz = int(round(float(prim.get("refreshRate", 60)) or 60))
-        except (TypeError, ValueError):
-            hz = 60
-        scale = prim.get("scale", 1.0)
-        run(["hyprctl", "keyword", "monitor", f"{stage},{w}x{h}@{hz},auto,{scale}"])
-        time.sleep(0.2)
-        # 2. migrate every physical-output workspace onto the stage.
-        for wid in moved:
-            run(["hyprctl", "dispatch", "moveworkspacetomonitor",
-                 f"{wid} {stage}"])
-        # 3. raise the curtain on the now-empty physical output, fullscreen.
-        run(["hyprctl", "dispatch", "focusmonitor", pname])
-        run(["hyprctl", "dispatch", "exec",
-             f"[fullscreen] kitty --class {CURTAIN_CLASS} -T 'AGENT MODE' cua-curtain"])
-        # 4. lock down human input: the agentlock submap kills every keybind but
-        #    panic/unlock; the pointer is parked. (Keyboard is never *disabled* —
-        #    the panic chord must always fire; the submap makes stray keys inert.)
-        run(["hyprctl", "dispatch", "submap", SUBMAP_AGENTLOCK])
-        self.lock_input()
-        # 5. record + persist for crash recovery.
-        self.agent_mode = {"stage": stage, "primary": pname,
-                           "workspaces": moved, "restoreWs": restore_ws,
-                           "since": iso(time.time())}
-        self._persist_agentmode()
+            # 1. off-screen stage, matched to the physical geometry so PNG pixels
+            #    and click coords map 1:1 with the real output.
+            before = {m.get("name") for m in (hypr_json("monitors all") or [])}
+            run(["hyprctl", "output", "create", "headless"])
+            time.sleep(0.3)
+            after = {m.get("name") for m in (hypr_json("monitors all") or [])}
+            new = sorted(after - before)
+            if not new:
+                raise RuntimeError("agent-mode stage was not created")
+            stage = new[0]
+            # Record + persist the moment the stage exists — BEFORE any
+            # destructive migration — so a SIGTERM/crash mid-enter still leaves
+            # enough for shutdown()/recover_agent_mode() to tear the stage down
+            # (both key off self.agent_mode / the persisted record).
+            self.agent_mode = {"stage": stage, "primary": pname,
+                               "workspaces": list(moved), "restoreWs": restore_ws,
+                               "since": iso(time.time())}
+            self._persist_agentmode()
+            w, h = int(prim.get("width", 1920)), int(prim.get("height", 1080))
+            try:
+                hz = int(round(float(prim.get("refreshRate", 60)) or 60))
+            except (TypeError, ValueError):
+                hz = 60
+            scale = prim.get("scale", 1.0)
+            run(["hyprctl", "keyword", "monitor",
+                 f"{stage},{w}x{h}@{hz},auto,{scale}"])
+            time.sleep(0.2)
+            # 2. migrate every physical-output workspace onto the stage, checking
+            #    each move so a silent failure can't leave a real workspace
+            #    sharing the physical output with the curtain.
+            failed = [wid for wid in moved
+                      if run(["hyprctl", "dispatch", "moveworkspacetomonitor",
+                              f"{wid} {stage}"])[0] != 0]
+            if failed:
+                log(f"agent-mode: workspace(s) failed to migrate: {failed}")
+            # 3. make the user's last-active workspace the active one on the stage
+            #    so `see real` shows what they were looking at, not an arbitrary
+            #    (or empty) workspace. moveworkspacetomonitor does not preserve the
+            #    active workspace, so set it explicitly (this is off-screen — it
+            #    does not disturb the physical output).
+            if restore_ws in moved and restore_ws not in failed:
+                run(["hyprctl", "dispatch", "focusmonitor", stage])
+                run(["hyprctl", "dispatch", "workspace", str(restore_ws)])
+            # 4. raise the curtain on the now-empty physical output, fullscreen.
+            run(["hyprctl", "dispatch", "focusmonitor", pname])
+            run(["hyprctl", "dispatch", "exec",
+                 f"[fullscreen] kitty --class {CURTAIN_CLASS} -T 'AGENT MODE' cua-curtain"])
+            # 5. lock down human input: the agentlock submap kills every keybind
+            #    but panic/unlock; the pointer is parked. (Keyboard is never
+            #    *disabled* — the panic chord must always fire; the submap makes
+            #    stray keys inert.)
+            run(["hyprctl", "dispatch", "submap", SUBMAP_AGENTLOCK])
+            self.lock_input()
+        except Exception as e:  # noqa: BLE001 — a failed enter must self-heal
+            log(f"agent-mode enter failed: {e}; rolling back")
+            am = self.agent_mode
+            self.agent_mode = None
+            if am:
+                self._agentmode_teardown(am)   # restarts hypridle, drops stage…
+            else:
+                run(["systemctl", "--user", "start", "hypridle.service"])
+            try:
+                os.remove(AGENT_MODE_STATE)
+            except OSError:
+                pass
+            return err(f"agent-mode enter failed: {e}", "ENTER_FAILED")
         log(f"agent-mode ON: staged {len(moved)} ws on {stage}, curtain on {pname}")
         return ok(agentMode=self._agentmode_status())
 
     def _agentmode_teardown(self, am):
-        # Idempotent restore of one agent-mode record. Order matters: release the
-        # input lockdown FIRST so a failure in a later step can never leave the
-        # user stuck behind a curtain with dead keybinds.
+        # Idempotent restore of one agent-mode record. Restore INPUT first — and
+        # the submap (keybinds, incl. the panic chord) BEFORE the pointer — so
+        # that if a later step fails the user still has working keybinds to escape
+        # and is never stuck behind the curtain with dead keys.
         run(["hyprctl", "dispatch", "submap", "reset"])
         self.unlock_input()
         run(["hyprctl", "dispatch", "closewindow", f"class:{CURTAIN_CLASS}"])
@@ -505,11 +540,25 @@ class Daemon:
                 am = json.load(f)
         except (OSError, json.JSONDecodeError):
             am = None
+        # A malformed-but-valid-JSON record (wrong field types) must not crash the
+        # daemon at startup — that would wedge the whole broker in a restart loop.
+        # Validate the shape; a bad record is treated as "no record".
+        if not (isinstance(am, dict)
+                and isinstance(am.get("stage"), str)
+                and isinstance(am.get("primary"), str)
+                and isinstance(am.get("workspaces"), list)):
+            am = None
         run(["hyprctl", "dispatch", "submap", "reset"])
         run(["hyprctl", "dispatch", "closewindow", f"class:{CURTAIN_CLASS}"])
         if am:
-            self._agentmode_teardown(am)
-            log("recovered stale agent-mode from a prior run")
+            try:
+                self._agentmode_teardown(am)
+                log("recovered stale agent-mode from a prior run")
+            except Exception as e:  # noqa: BLE001 — recovery must not crash boot
+                log(f"agent-mode recovery teardown failed (continuing): {e}")
+        # Ensure idle management is running regardless: a crash mid-enter may have
+        # left hypridle stopped with no valid record to drive teardown.
+        run(["systemctl", "--user", "start", "hypridle.service"])
         self.agent_mode = None
         try:
             os.remove(AGENT_MODE_STATE)
