@@ -450,19 +450,18 @@ class Daemon:
                               f"{wid} {stage}"])[0] != 0]
             if failed:
                 log(f"agent-mode: workspace(s) failed to migrate: {failed}")
-            # 3. make the user's last-active workspace the active one on the stage
-            #    so `see real` shows what they were looking at, not an arbitrary
-            #    (or empty) workspace. moveworkspacetomonitor does not preserve the
-            #    active workspace, so set it explicitly (this is off-screen — it
-            #    does not disturb the physical output).
-            if restore_ws in moved and restore_ws not in failed:
-                run(["hyprctl", "dispatch", "focusmonitor", stage])
-                run(["hyprctl", "dispatch", "workspace", str(restore_ws)])
-            # 4. raise the curtain on the now-empty physical output, fullscreen.
+            # The user's last-active workspace (restore_ws) was the ACTIVE one on
+            # the physical output; moving an active workspace to a monitor keeps it
+            # active there, so the stage already shows what the user was looking at
+            # and `see real` captures it. (Verified: moving the active ws makes it
+            # the destination's active ws; non-active moves don't change it. No
+            # explicit activation is needed — and trying to set it via `workspace`
+            # would unreliably pull a workspace onto the physical output instead.)
+            # 3. raise the curtain on the now-empty physical output, fullscreen.
             run(["hyprctl", "dispatch", "focusmonitor", pname])
             run(["hyprctl", "dispatch", "exec",
                  f"[fullscreen] kitty --class {CURTAIN_CLASS} -T 'AGENT MODE' cua-curtain"])
-            # 5. lock down human input: the agentlock submap kills every keybind
+            # 4. lock down human input: the agentlock submap kills every keybind
             #    but panic/unlock; the pointer is parked. (Keyboard is never
             #    *disabled* — the panic chord must always fire; the submap makes
             #    stray keys inert.)
