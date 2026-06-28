@@ -613,7 +613,12 @@ in
         after_sleep_cmd = "hyprctl dispatch dpms on && wallpaper-restore";
       };
       listener = [
-        { timeout = 300; on-timeout = "hyprlock"; }
+        # Idle lock is routed (R17): cua-idle-lock locks into porous agent-mode
+        # when any agent is running, else a real hyprlock. `|| hyprlock` is a
+        # backstop if the router binary itself can't start — idle must never
+        # leave the screen unlocked. (Explicit lock_cmd / before_sleep above stay
+        # plain hyprlock: deliberate "lock now" / suspend means a real lock.)
+        { timeout = 300; on-timeout = "cua-idle-lock || hyprlock"; }
       ];
     };
   };

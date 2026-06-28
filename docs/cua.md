@@ -165,7 +165,21 @@ is a different lock that keeps the real desktop live:
 output (stage included), so `cua agent-mode on` **refuses while hyprlock is up**
 (`ALREADY_LOCKED`); unlock first, then lock here. While agent-mode is active the
 daemon **stops `hypridle`** so its idle timeout can't fire hyprlock and blank the
-stage mid-session; teardown (unlock/panic/recovery) restarts it.
+stage mid-session; teardown (unlock/panic/recovery) restarts it. (The stop
+happens only *after* a successful entry, so a failed entry never leaves the
+idle-router unable to fall back to a real lock.)
+
+**Idle routing (`cua-idle-lock`).** hypridle's `on-timeout` runs the
+`cua-idle-lock` router instead of `hyprlock` directly: if **any agent is
+running** (`agent-status.json` `.running`) it locks into porous agent-mode so
+agents keep working while you're away; otherwise it falls back to a real
+hyprlock. It fails safe (`… || hyprlock`) — idle never leaves the screen
+unlocked. Explicit locks (`lock_cmd`, `before_sleep_cmd`/suspend, the
+`Super+Shift+L` keybind) stay plain hyprlock — a deliberate "lock now" means a
+real lock; `Super+Ctrl+L` is the explicit porous-lock keybind. Note: since an
+agent is almost always running, idle will almost always pick agent-mode — chosen
+deliberately for an always-agentic workflow (it is the cooperative lock, not a
+secure boundary).
 
 **Crash recovery.** The active stage/workspaces/primary are persisted to
 `$XDG_RUNTIME_DIR/cua.agent-mode`. On startup the daemon tears down any stale

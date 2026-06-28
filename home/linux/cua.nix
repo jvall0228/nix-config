@@ -31,6 +31,15 @@ let
     text = builtins.readFile ./cua-curtain.sh;
   };
 
+  # Idle-lock router (R17): hypridle's on-timeout runs this instead of hyprlock —
+  # it locks into porous agent-mode when any agent is running, else a real
+  # hyprlock. Self-contained (cua + hyprlock + jq in its PATH). See hyprlock.nix.
+  cua-idle-lock = pkgs.writeShellApplication {
+    name = "cua-idle-lock";
+    runtimeInputs = [ cli pkgs.hyprlock pkgs.hyprland pkgs.jq pkgs.coreutils ];
+    text = builtins.readFile ./cua-idle-lock.sh;
+  };
+
   # `cua` — the harness-agnostic CLI every agent shells out to. Read-only verbs
   # touch the published JSON / grim directly; stateful verbs send one JSON line
   # to the daemon's Unix socket and print the reply.
@@ -296,7 +305,7 @@ EOF
   };
 in
 {
-  home.packages = [ cli cua-panic cua-curtain pkgs.ydotool ];
+  home.packages = [ cli cua-panic cua-curtain cua-idle-lock pkgs.ydotool ];
 
   # ── ydotoold: the input-injection backend (user-level) ──────────────────────
   # User service (not programs.ydotool's root system service) to match the

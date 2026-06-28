@@ -406,14 +406,12 @@ class Daemon:
         moved = [w["id"] for w in (hypr_json("workspaces") or [])
                  if w.get("monitor") == pname and isinstance(w.get("id"), int)
                  and w["id"] >= 0]
-        # Stop hypridle so its idle timeout can't fire hyprlock mid-agent-mode and
-        # slap a real ext-session-lock over everything (which would blank the
-        # stage). Teardown restarts it. (Also pauses auto-dpms/dim — fine while
-        # the curtain owns the screen.)
-        run(["systemctl", "--user", "stop", "hypridle.service"])
         # Everything past here is failure-atomic: any error (stage didn't spawn,
-        # a dispatch raised) rolls the whole thing back — restoring hypridle and
-        # the desktop — so a half-entered agent-mode never strands the user.
+        # a dispatch raised) rolls the whole thing back — restoring the desktop —
+        # so a half-entered agent-mode never strands the user. (hypridle is NOT
+        # stopped until the very end, on success: the idle-router runs as a child
+        # of hypridle, so stopping it mid-entry would kill the router before it
+        # could fall back to a real lock — see cua-idle-lock.)
         try:
             # 1. off-screen stage, matched to the physical geometry so PNG pixels
             #    and click coords map 1:1 with the real output.
@@ -480,6 +478,12 @@ class Daemon:
             except OSError:
                 pass
             return err(f"agent-mode enter failed: {e}", "ENTER_FAILED")
+        # Only now that entry has SUCCEEDED do we stop hypridle, so its idle
+        # timeout can't fire hyprlock mid-agent-mode and blank the stage. Doing it
+        # last means a failed entry above never stopped it (the idle-router child
+        # survives to fall back to a real lock), and on success the router is only
+        # killed once the curtain is already up. Teardown restarts it.
+        run(["systemctl", "--user", "stop", "hypridle.service"])
         log(f"agent-mode ON: staged {len(moved)} ws on {stage}, curtain on {pname}")
         return ok(agentMode=self._agentmode_status())
 

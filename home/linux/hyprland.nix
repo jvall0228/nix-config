@@ -174,6 +174,11 @@ in
         vfr = true;
         disable_hyprland_logo = true;
         disable_splash_rendering = true;
+        # Let a fresh hyprlock re-attach to an orphaned session lock if the
+        # locker ever dies without unlocking (a "lockdead" state) — otherwise the
+        # session is stuck locked with no client to authenticate against. Cheap
+        # resilience for the cua agent-mode/hyprlock interplay (R17).
+        allow_session_lock_restore = true;
       };
 
 };
