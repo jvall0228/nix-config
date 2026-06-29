@@ -70,6 +70,23 @@ in
     - Service: systemctl --user status agent-status. Schema + how to add an agent:
       docs/agent-status.md
 
+    ## AI Agent Spawn (launch new agent sessions)
+    - The "agent-spawn" command (home/linux/agent-status.nix) launches a NEW agent
+      session in its own detached tmux session, with CLI flags baked into named
+      presets so you never look up per-harness bypass flags:
+        agent-spawn --list                  show presets
+        agent-spawn <preset> [dir] [prompt]  spawn; prints the tmux session name
+      Presets: claude, codex, opencode (bypass-permissions ON) plus claude-safe,
+      codex-safe, opencode-safe (no bypass). dir and prompt are positional (2nd and
+      3rd): dir defaults to the cwd, prompt is optional, but to seed a prompt in the
+      current dir pass dir explicitly: agent-spawn claude . "fix the build".
+    - Fire-and-forget: it returns immediately and prints the session name. Attach or
+      pilot it over plain tmux — tmux attach -t <name>, tmux send-keys -t <name> ...,
+      tmux capture-pane -t <name> -p. Spawned sessions auto-appear in agent-status
+      (and waybar / the lock screen). A claude session can drive a codex/opencode
+      session this way (they lack native remote control).
+    - Reference: docs/agent-status.md
+
     ## AI Computer-Use (CUA) — see & act on the desktop (harness-agnostic)
     - The "cua" command lets ANY agent see and act on the Wayland desktop. A user
       daemon (home/linux/cua.nix) brokers Hyprland's single seat as a serialized

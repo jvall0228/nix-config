@@ -123,6 +123,66 @@ jq -r '.active // "none"'      "$XDG_RUNTIME_DIR/agent-status.json"
 Always tolerate a missing/stale file (daemon down, pre-first-write): treat it as
 "nothing running" and degrade gracefully — every existing consumer does.
 
+## Spawning agents (`agent-spawn`)
+
+The inverse of observation: `agent-spawn` launches a **new** agent session in its
+own detached tmux session, so an agent (or you) can start another without looking
+up per-harness CLI flags. It is a thin, stateless command in
+`home/linux/agent-status.nix` — it does not touch the resident daemon loop.
+
+```sh
+agent-spawn --list                    # show presets
+agent-spawn <preset> [dir] [prompt]   # spawn; prints the tmux session name
+agent-spawn claude ~/web "refactor auth"
+agent-spawn claude . "fix the build"   # seed a prompt in the cwd (dir/prompt are
+                                       # positional, so pass dir as . to reach prompt)
+tmux attach -t agent-claude-web        # attach to (or pilot) the spawned session
+```
+
+**Presets** bundle an agent with whether bypass-permissions is on; the per-harness
+*spelling* of bypass lives in the launcher, not the preset. Bare preset name =
+bypass-on default; `<agent>-safe` = the non-bypass opt-out.
+
+| preset | agent | bypass |
+|--------|-------|--------|
+| `claude` / `claude-safe`     | claude   | on / off |
+| `codex` / `codex-safe`       | codex    | on / off |
+| `opencode` / `opencode-safe` | opencode | on / off |
+
+Per-harness mechanics (resolved against the installed CLIs):
+
+| agent | bypass (attachable session) | initial prompt |
+|-------|-----------------------------|----------------|
+| claude   | `--dangerously-skip-permissions` (flag) | positional — auto-starts |
+| codex    | `--dangerously-bypass-approvals-and-sandbox` (flag) | positional — auto-starts |
+| opencode | `OPENCODE_PERMISSION={"*":"allow"}` (env; TUI has no flag) | `--prompt` — nudged with a delayed `send-keys Enter` |
+
+Design notes:
+
+- **Fire-and-forget.** The command returns immediately and prints the session
+  name; nothing is captured or waited on. Spawned processes are real, so the
+  daemon detects them automatically (they reparent under the tmux server, so each
+  is a distinct session root) and they appear in waybar and the lock screen.
+- **tmux is the control plane.** There is no wrapper interaction surface — a claude
+  session pilots a codex/opencode session (which lack native remote control) with
+  plain `tmux send-keys` / `capture-pane`. Predictable names
+  (`agent-<harness>-<dir-basename>`, slugified + collision-suffixed) make sessions
+  addressable.
+- **Injection-safe.** The prompt and dir are passed as distinct tmux argv elements
+  (`tmux new-session … -- <abs-agent> … "$prompt"`), never interpolated into a
+  shell string, so a prompt containing shell metacharacters cannot execute at
+  spawn. Agent binaries are referenced by absolute store path so resolution does
+  not depend on a possibly-stale PATH in an already-running tmux server.
+- **`-safe` is a convenience, not a sandbox.** It selects a non-bypass preset; it
+  does not confine an untrusted agent (any process running as you can spawn a
+  bypass-on sibling). For opencode (whose bypass is an env var, not a flag),
+  `opencode-safe` *pins* `OPENCODE_PERMISSION={"*":"ask"}` so an ambient allow-all
+  in the tmux server's environment can't silently un-safe it — parity with the
+  flag-based claude-safe / codex-safe, not a stronger guarantee.
+
+To add an agent or preset: extend `spawnPresets` (and the per-agent dispatch) in
+`home/linux/agent-status.nix`.
+
 ## Process detection (the important gotcha)
 
 Nix wraps three of the four binaries with `makeCWrapper`, so the running process
