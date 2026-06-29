@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AGS Command Center</title>
+    <link rel="stylesheet" href="common.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <a class="brand" href="index.html"><span class="brand-mark"></span><span>ThinkPad UX Guide</span></a>
+        <nav class="nav" aria-label="Guide pages">
+          <a href="index.html">Overview</a>
+          <a href="desktop-modes.html">Desktop Modes</a>
+          <a class="active" href="command-center.html">Command Center</a>
+          <a href="ownership-map.html">Ownership Map</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Use the existing framework</div>
+          <h1>AGS becomes the cockpit.</h1>
+          <p class="lead">
+            Your AGS dashboard already has quick settings, stats, battery, and session actions.
+            The unixporn-inspired upgrade is richer context: desktop mode, TLP policy, NVIDIA
+            runtime state, Syncthing/Tailscale, capture state, recent media, and agent activity.
+          </p>
+        </div>
+
+        <div class="screen" aria-label="Command center mock">
+          <div class="wm-bar">
+            <div class="workspaces">
+              <span class="workspace active">1</span>
+              <span class="workspace">2</span>
+              <span class="workspace">3</span>
+            </div>
+            <div class="bar-clock">Command Center</div>
+            <div class="status-row"><span class="dot green"></span><span>balanced</span><span>82%</span></div>
+          </div>
+
+          <section class="panel floating dashboard" style="width:min(520px, calc(100% - 36px));">
+            <div class="section-title">Javels@thinkpad <span>up 4h 18m</span></div>
+            <div class="quick-grid">
+              <div class="quick active"><strong>Mode</strong><span>Daily</span></div>
+              <div class="quick active"><strong>WiFi</strong><span>home-5g</span></div>
+              <div class="quick"><strong>BT</strong><span>MX Keys</span></div>
+              <div class="quick"><strong>DND</strong><span>off</span></div>
+              <div class="quick active"><strong>TLP</strong><span>AC performance</span></div>
+              <div class="quick"><strong>GPU</strong><span>runtime off</span></div>
+            </div>
+
+            <div class="two-up">
+              <div class="mini-window">
+                <div class="section-title">System <span>polling</span></div>
+                <div class="meter"><span>CPU</span><span class="meter-bar"><i style="width: 28%"></i></span><span>28%</span></div>
+                <div class="meter"><span>RAM</span><span class="meter-bar"><i style="width: 46%"></i></span><span>46%</span></div>
+                <div class="meter"><span>Disk</span><span class="meter-bar"><i style="width: 61%"></i></span><span>61%</span></div>
+              </div>
+              <div class="mini-window">
+                <div class="section-title">Laptop <span>ThinkPad</span></div>
+                <div class="meter"><span>BAT</span><span class="meter-bar"><i style="width: 82%"></i></span><span>82%</span></div>
+                <div class="meter"><span>Temp</span><span class="meter-bar"><i style="width: 53%"></i></span><span>53C</span></div>
+                <div class="meter"><span>Fan</span><span class="meter-bar"><i style="width: 24%"></i></span><span>quiet</span></div>
+              </div>
+            </div>
+
+            <div class="mini-window">
+              <div class="section-title">Active Work <span>state-aware</span></div>
+              <div class="result-list">
+                <div class="result"><span class="icon-box">C</span><div><b>Capture ready</b><br><small>Rofi owns start flow, AGS owns state and stop action</small></div><span class="key">Super+Shift+S</span></div>
+                <div class="result"><span class="icon-box">A</span><div><b>Agent running</b><br><small>Codex in nix-config, lockscreen cycle available</small></div><span class="key">Super+]</span></div>
+                <div class="result"><span class="icon-box">S</span><div><b>Syncthing</b><br><small>2 folders synced, 0 conflicts</small></div><span class="key">open</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="ownership-grid">
+        <article class="card accent-cyan">
+          <h3>Add to current dashboard</h3>
+          <p>Desktop mode tile, capture state, TLP/charge thresholds, NVIDIA runtime state, Syncthing status, Tailscale state, and latest screenshot/recording shortcut.</p>
+        </article>
+        <article class="card accent-red">
+          <h3>Remove from current dashboard</h3>
+          <p>Separate direct screen recording to /tmp. It competes with the capture menu. AGS should stop, reveal, or show state for the canonical recorder.</p>
+        </article>
+        <article class="card accent-green">
+          <h3>Keep as separate popups</h3>
+          <p>Calendar, audio mixer, network, Bluetooth, media, and notifications already map cleanly from Waybar clicks to AGS popups.</p>
+        </article>
+        <article class="card accent-yellow">
+          <h3>Use mode-aware density</h3>
+          <p>Daily mode can stay rich. Battery/focus modes should collapse less important sections and reduce polling-heavy visual surfaces.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

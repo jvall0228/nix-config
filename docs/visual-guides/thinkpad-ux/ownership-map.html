@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UX Ownership Map</title>
+    <link rel="stylesheet" href="common.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <a class="brand" href="index.html"><span class="brand-mark"></span><span>ThinkPad UX Guide</span></a>
+        <nav class="nav" aria-label="Guide pages">
+          <a href="index.html">Overview</a>
+          <a href="desktop-modes.html">Desktop Modes</a>
+          <a href="command-center.html">Command Center</a>
+          <a class="active" href="ownership-map.html">Ownership Map</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Avoid redundant UX frameworks</div>
+          <h1>Give every surface one job.</h1>
+          <p class="lead">
+            The cleanest path is not adding tools. It is making the current tools stop competing:
+            Walker searches, Rofi performs scoped tasks, AGS owns interactive state, Waybar
+            reports status, Hyprlock owns the lock surface, and Stylix owns durable theming.
+          </p>
+        </div>
+
+        <div class="screen" aria-label="Launcher ownership mock">
+          <div class="wm-bar">
+            <div class="workspaces">
+              <span class="workspace active">1</span>
+              <span class="workspace">2</span>
+              <span class="workspace">3</span>
+            </div>
+            <div class="bar-clock">Ownership Map</div>
+            <div class="status-row"><span class="dot green"></span><span>no overlap</span></div>
+          </div>
+
+          <section class="panel floating launcher">
+            <div class="search">Search apps, files, windows, clipboard, symbols, calc, web</div>
+            <div class="result-list">
+              <div class="result"><span class="icon-box">W</span><div><b>Walker</b><br><small>Universal launcher and search surface</small></div><span class="key">Super+Space</span></div>
+              <div class="result"><span class="icon-box">R</span><div><b>Rofi task menus</b><br><small>Wallpaper, capture, mode picker, debug menus</small></div><span class="key">Super+W</span></div>
+              <div class="result"><span class="icon-box">A</span><div><b>AGS controls</b><br><small>Dashboard, popups, notifications, OSD, stateful controls</small></div><span class="key">Waybar clicks</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="flow" aria-label="Ownership flow chart">
+        <div class="flow-row">
+          <div class="flow-label">Waybar</div>
+          <div class="flow-cells">
+            <div class="flow-cell"><strong>Show</strong><span>Workspace, window, clock, active mode, agent/CUA, battery, network, media summary.</span></div>
+            <div class="flow-cell"><strong>Open</strong><span>Click modules to toggle AGS popups. Keep bar dense and glanceable.</span></div>
+            <div class="flow-cell"><strong>Avoid</strong><span>Heavy graphs, duplicate system dashboards, long-running task logic.</span></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="flow-label">AGS</div>
+          <div class="flow-cells">
+            <div class="flow-cell"><strong>Show</strong><span>Controls, rich dashboard, notification center, media, OSD, stateful laptop context.</span></div>
+            <div class="flow-cell"><strong>Control</strong><span>Toggle state, stop capture, switch mode, reveal latest recording, manage devices.</span></div>
+            <div class="flow-cell"><strong>Avoid</strong><span>Becoming a second launcher or starting alternate capture flows.</span></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="flow-label">Walker</div>
+          <div class="flow-cells">
+            <div class="flow-cell"><strong>Search</strong><span>Apps, files, windows, clipboard, symbols, calculator, web search.</span></div>
+            <div class="flow-cell"><strong>Launch</strong><span>Default path for app opening and command search.</span></div>
+            <div class="flow-cell"><strong>Avoid</strong><span>Specialized multi-step menus better handled by Rofi scripts.</span></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="flow-label">Rofi</div>
+          <div class="flow-cells">
+            <div class="flow-cell"><strong>Pick</strong><span>Wallpaper, capture action, desktop mode, small maintenance actions.</span></div>
+            <div class="flow-cell"><strong>Run</strong><span>Scoped scripts with state files and notifications.</span></div>
+            <div class="flow-cell"><strong>Avoid</strong><span>General app launcher duplication once Walker is trusted.</span></div>
+          </div>
+        </div>
+
+        <div class="flow-row">
+          <div class="flow-label">Stylix</div>
+          <div class="flow-cells">
+            <div class="flow-cell"><strong>Own</strong><span>Durable theme, fonts, cursor, base wallpaper, system-wide color source.</span></div>
+            <div class="flow-cell"><strong>Feed</strong><span>Generated AGS/Waybar CSS and Nix-configured app themes.</span></div>
+            <div class="flow-cell"><strong>Avoid</strong><span>Competing pywal/wpgtk authority unless deliberately replacing the model.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="callout">
+        <strong>Net effect:</strong> The environment can borrow polish from Quickshell, EWW, KDE widgets, SwayFX, and Niri posts
+        without importing their frameworks. Most improvements become AGS widgets, Rofi menus, state files, and reload hooks.
+      </div>
+    </main>
+  </body>
+</html>

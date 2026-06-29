@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ThinkPad UX Visual Guide</title>
+    <link rel="stylesheet" href="common.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <a class="brand" href="index.html"><span class="brand-mark"></span><span>ThinkPad UX Guide</span></a>
+        <nav class="nav" aria-label="Guide pages">
+          <a class="active" href="index.html">Overview</a>
+          <a href="desktop-modes.html">Desktop Modes</a>
+          <a href="command-center.html">Command Center</a>
+          <a href="ownership-map.html">Ownership Map</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Planning artifact</div>
+          <h1>Polish the shell you already built.</h1>
+          <p class="lead">
+            The current setup already has Hyprland, Waybar, AGS/Astal, Walker, Rofi, Stylix,
+            Hyprlock, wallpaper modes, capture tooling, and ThinkPad power policy. The UX
+            opportunity is ownership clarity and mode-driven polish, not another shell framework.
+          </p>
+          <div class="mode-row">
+            <span class="pill">Waybar = status</span>
+            <span class="pill">AGS = controls</span>
+            <span class="pill">Walker = search</span>
+            <span class="pill">Rofi = task menus</span>
+          </div>
+        </div>
+
+        <div class="screen" aria-label="Mock desktop overview">
+          <div class="wm-bar">
+            <div class="workspaces">
+              <span class="workspace active">1</span>
+              <span class="workspace">2</span>
+              <span class="workspace">3</span>
+              <span class="workspace">4</span>
+            </div>
+            <div class="bar-clock">14:42 Sun Jun 28</div>
+            <div class="status-row">
+              <span class="dot red"></span><span>agent</span>
+              <span class="dot green"></span><span>AC</span>
+              <span>86%</span>
+            </div>
+          </div>
+
+          <section class="panel floating dashboard">
+            <div class="section-title">Command Center <span>daily mode</span></div>
+            <div class="quick-grid">
+              <div class="quick active"><strong>WiFi</strong><span>connected</span></div>
+              <div class="quick"><strong>BT</strong><span>idle</span></div>
+              <div class="quick active"><strong>DND</strong><span>focus</span></div>
+              <div class="quick"><strong>Mode</strong><span>daily</span></div>
+              <div class="quick"><strong>Capture</strong><span>ready</span></div>
+              <div class="quick active"><strong>TLP</strong><span>AC policy</span></div>
+            </div>
+            <div class="meter"><span>CPU</span><span class="meter-bar"><i style="width: 34%"></i></span><span>34%</span></div>
+            <div class="meter"><span>GPU</span><span class="meter-bar"><i style="width: 8%"></i></span><span>idle</span></div>
+            <div class="meter"><span>BAT</span><span class="meter-bar"><i style="width: 86%"></i></span><span>86%</span></div>
+          </section>
+
+          <section class="panel floating media">
+            <div class="section-title">Media <span>MPRIS</span></div>
+            <div class="mini-window">
+              <h3>Album surface</h3>
+              <p class="subtle">Keep the existing AGS media owner. Use the richer unixporn-style presentation only inside AGS.</p>
+            </div>
+            <div class="button-row">
+              <button class="button">Prev</button>
+              <button class="button primary">Play</button>
+              <button class="button">Next</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="artifact-grid" aria-label="Primary recommendations">
+        <article class="card accent-cyan">
+          <h3>Desktop Modes</h3>
+          <p>Extend wallpaper state into whole-session profiles: daily, battery, focus, ThinkPad red, and showcase.</p>
+          <a class="pill" href="desktop-modes.html">View artifact</a>
+        </article>
+        <article class="card accent-red">
+          <h3>AGS Command Center</h3>
+          <p>Keep AGS as the rich UX owner and add laptop, capture, agent, and service context to the existing dashboard.</p>
+          <a class="pill" href="command-center.html">View artifact</a>
+        </article>
+        <article class="card accent-green">
+          <h3>Ownership Map</h3>
+          <p>Reduce redundant flows: Walker searches, Rofi runs task menus, AGS controls state, Waybar stays glanceable.</p>
+          <a class="pill" href="ownership-map.html">View artifact</a>
+        </article>
+      </section>
+
+      <div class="callout">
+        <strong>Constraint:</strong> Avoid Quickshell, EWW, Polybar, another notification center, or a second power policy layer.
+        The guide borrows their interaction ideas while preserving the current convention.
+      </div>
+    </main>
+  </body>
+</html>

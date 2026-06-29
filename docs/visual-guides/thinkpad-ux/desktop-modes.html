@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Desktop Modes</title>
+    <link rel="stylesheet" href="common.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <a class="brand" href="index.html"><span class="brand-mark"></span><span>ThinkPad UX Guide</span></a>
+        <nav class="nav" aria-label="Guide pages">
+          <a href="index.html">Overview</a>
+          <a class="active" href="desktop-modes.html">Desktop Modes</a>
+          <a href="command-center.html">Command Center</a>
+          <a href="ownership-map.html">Ownership Map</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">Highest-value gap</div>
+          <h1>Make the rice switchable.</h1>
+          <p class="lead">
+            Your wallpaper system already tracks mode and battery state. The next UX step is a
+            small desktop-mode layer that coordinates wallpaper, Waybar density, AGS accent,
+            Hyprland animation intensity, DND, and capture/showcase behavior.
+          </p>
+          <div class="mode-row">
+            <span class="pill">No pywal required</span>
+            <span class="pill">Stylix stays canonical</span>
+            <span class="pill">Runtime CSS only</span>
+          </div>
+        </div>
+
+        <div class="screen red" aria-label="Desktop mode switcher mock">
+          <div class="wm-bar">
+            <div class="workspaces">
+              <span class="workspace active">1</span>
+              <span class="workspace">2</span>
+              <span class="workspace">3</span>
+              <span class="workspace">4</span>
+            </div>
+            <div class="bar-clock">ThinkPad Red</div>
+            <div class="status-row"><span class="dot red"></span><span>profile active</span></div>
+          </div>
+
+          <section class="panel floating mode-switcher">
+            <div class="section-title">Desktop Mode <span>Rofi task menu or AGS tile</span></div>
+            <div class="quick-grid">
+              <div class="quick"><strong>Daily</strong><span>Tokyo Night, balanced effects</span></div>
+              <div class="quick active"><strong>ThinkPad Red</strong><span>black/red accent, showcase-ready</span></div>
+              <div class="quick"><strong>Battery</strong><span>static wallpaper, quiet polling</span></div>
+              <div class="quick"><strong>Focus</strong><span>DND, minimal bar, idle explicit</span></div>
+              <div class="quick"><strong>Desk</strong><span>video wallpaper, full effects</span></div>
+              <div class="quick"><strong>Showcase</strong><span>open curated layout</span></div>
+            </div>
+            <div class="button-row">
+              <button class="button primary">Apply</button>
+              <button class="button">Preview</button>
+              <button class="button">Revert</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="mode-card-grid">
+        <article class="card accent-cyan">
+          <h3>Daily</h3>
+          <p>Current Tokyo Night defaults. Keep full AGS widgets, normal Waybar, normal animations, restored wallpaper state.</p>
+          <div class="swatches">
+            <span class="swatch" style="background:#1a1b26"></span>
+            <span class="swatch" style="background:#7aa2f7"></span>
+            <span class="swatch" style="background:#bb9af7"></span>
+          </div>
+        </article>
+        <article class="card accent-red">
+          <h3>ThinkPad Red</h3>
+          <p>TrackPoint-inspired profile for screenshots: red accents, darker panels, active workspace underline, lockscreen red trim.</p>
+          <div class="swatches">
+            <span class="swatch" style="background:#08090d"></span>
+            <span class="swatch" style="background:#f7768e"></span>
+            <span class="swatch" style="background:#d7dcff"></span>
+          </div>
+        </article>
+        <article class="card accent-green">
+          <h3>Battery</h3>
+          <p>Respect TLP policy: static wallpaper, reduced Hyprland animation, no video wallpaper, AGS shows battery-first controls.</p>
+          <div class="swatches">
+            <span class="swatch" style="background:#10121a"></span>
+            <span class="swatch" style="background:#9ece6a"></span>
+            <span class="swatch" style="background:#e0af68"></span>
+          </div>
+        </article>
+        <article class="card accent-yellow">
+          <h3>Showcase</h3>
+          <p>One command opens a curated layout with fastfetch, btop, Yazi, Neovim, AGS dashboard, and optional screen capture.</p>
+          <div class="swatches">
+            <span class="swatch" style="background:#252b3f"></span>
+            <span class="swatch" style="background:#e0af68"></span>
+            <span class="swatch" style="background:#7dcfff"></span>
+          </div>
+        </article>
+      </section>
+
+      <div class="callout">
+        <strong>Implementation convention:</strong> Treat desktop modes as state plus reload hooks. Do not add a new theme framework.
+        Stylix remains the declarative source; runtime modes adjust generated AGS/Waybar CSS, Hyprland keywords, and wallpaper state.
+      </div>
+    </main>
+  </body>
+</html>
