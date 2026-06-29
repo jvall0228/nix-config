@@ -24,7 +24,34 @@ in
 
   # Networking configured by do-networking.nix (cloud-init)
   networking.firewall.enable = true;
+  # Port 22 stays open on the PUBLIC interface for now. Closing it (SSH over
+  # Tailscale only — todo 005 AC#4) is deliberately staged to a follow-up commit,
+  # AFTER `tailscale up` is confirmed working, so the 04:00 auto-upgrade can't
+  # lock the droplet out. Tailscale traffic (incl. SSH) is already allowed via
+  # trustedInterfaces below, so the eventual cutover is just dropping 22 here.
   networking.firewall.allowedTCPPorts = [ 22 ];
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+
+  # Tailscale (todo 005): VPN mesh to thinkpad / macbook-pro. This enables the
+  # daemon + CLI only; join the tailnet once, manually, after deploy:
+  #   sudo tailscale up
+  # No auth-key secret management (no sops-nix in this repo yet). rpfilter is
+  # already loose here — useRoutingFeatures = "client" forces
+  # networking.firewall.checkReversePath = "loose" — so if routed (exit-node /
+  # subnet) packets still drop, the next step is checkReversePath = false, not "loose".
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;            # UDP 41641 for direct (NAT-traversal) links
+    useRoutingFeatures = "client";  # allow using a subnet route / exit node
+  };
+
+  # Docker (todo 005): rootful daemon for containerized agent tools / MCP servers.
+  # ${user} is added to the docker group below. Pin docker_29 explicitly: the
+  # default `docker` package is 28.5.2, which nixpkgs 25.11 marks INSECURE
+  # (docker_28 unmaintained since Nov 2025 → recommends docker_29+). Permitting
+  # the insecure package would be the wrong call on a public-facing droplet.
+  virtualisation.docker.enable = true;
+  virtualisation.docker.package = pkgs.docker_29;
 
   time.timeZone = "America/New_York";
   i18n.defaultLocale = "en_US.UTF-8";
@@ -42,7 +69,7 @@ in
   # SSH authorized keys for both user and root (nixos-anywhere needs root)
   users.users.${user} = {
     isNormalUser = true;
-    extraGroups = [ "wheel" ];
+    extraGroups = [ "wheel" "docker" ];
     shell = pkgs.bash;
     openssh.authorizedKeys.keys = sshKeys;
   };

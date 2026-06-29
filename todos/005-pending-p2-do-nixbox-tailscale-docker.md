@@ -38,3 +38,28 @@ Do-nixbox was deployed with SSH-only access as the initial scope. Two services w
 
 - **Affected files:** `hosts/do-nixbox/default.nix`, `flake.nix` (if Tailscale needs a flake input)
 - **Origin:** Deferred from brainstorm (see `docs/brainstorms/2026-03-05-do-nixbox-droplet-brainstorm.md`)
+
+## Implementation Status (2026-06-29)
+
+Declarative config landed in `hosts/do-nixbox/default.nix` and **builds clean**
+(`nixos-rebuild build --flake .#do-nixbox`, x86_64-linux):
+
+- **Tailscale** — `services.tailscale.enable` (1.90.9) + `openFirewall` (UDP 41641)
+  + `useRoutingFeatures = "client"`; `networking.firewall.trustedInterfaces =
+  [ "tailscale0" ]` so SSH-over-tailnet works (and the future port-22 cutover is
+  just dropping 22). **Auth is manual** (no secret mgmt): run `sudo tailscale up`
+  once on the box.
+- **Docker** — rootful, `${user}` added to the `docker` group. Pinned
+  `virtualisation.docker.package = pkgs.docker_29` (29.5.3): the default `docker`
+  is 28.5.2, which 25.11 marks **insecure** (docker_28 unmaintained since Nov 2025)
+  — caught at build time; pinned rather than permitting the insecure package.
+
+Remaining (all on-box — cannot be verified from the dev machine):
+
+- [ ] Deploy (push to main → 04:00 auto-upgrade, or `nixos-rebuild --target-host`).
+- [ ] `sudo tailscale up` on the droplet; confirm `tailscale status` on the tailnet.
+- [ ] SSH to do-nixbox via its Tailscale IP from thinkpad/macbook-pro.
+- [ ] `docker run hello-world`.
+- [ ] **Then** stage AC#4 in a follow-up: drop `22` from `allowedTCPPorts`
+      (SSH-via-tailnet only) — only after the above is confirmed, so the
+      auto-upgrade can't lock the box out.
